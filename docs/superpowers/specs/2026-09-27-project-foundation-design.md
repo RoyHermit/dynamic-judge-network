@@ -224,9 +224,18 @@ class JudgeExecutor(Protocol):
     membership — never by catching an exception — which keeps this
     consistent with context doc §22 ("SKIP is valid"): a missing Judge
     decision is data for the aggregator to handle, not a crash. The
-    only case `run_stage` raises for is the duplicate-`judge_id`
-    `ValueError` above — a caller programming error, not a runtime
-    condition."""
+    only *runtime* conditions this partial-result promise covers are a
+    provider call failing and a Judge's `interpret()` raising — both
+    are expected, already-anticipated outcomes with a defined recording
+    path. Everything else propagates as a real exception, uncaught:
+    the duplicate-`judge_id` `ValueError` (a caller programming error),
+    a `to_question()` raising (a Judge programming error — it is meant
+    to be a pure function, so an exception there is a bug, not a
+    runtime condition to absorb), and a `writer.record_call()` /
+    `writer.record_interpretation()` failure (a storage/infrastructure
+    fault — swallowing it would silently break the durability guarantee
+    the rest of this section exists to provide). The executor must not
+    catch and discard any of these three."""
 
     async def run_stage(
         self,
@@ -400,21 +409,32 @@ call/batch tracking — both corrected per review):
     These columns exist now so the schema doesn't need a breaking
     migration when the graph spec lands, but nothing in foundation
     scope writes them.
-  `executed_judge_count` on `decisions` (below) MUST be defined as
-  "count of `judge_logs` rows for this decision" (i.e. phase-A rows,
-  which exist independent of whether phase B/C ever complete), not
-  "count where `was_used`" — the former is the true execution/cost
-  count, the latter is a graph-behavior metric (`used_judge_count`,
-  computed the same way filtered on `was_used`, not a stored column).
+  A failed provider call (`calls.status="error"`) writes a `calls` row
+  but zero `judge_logs` rows for the Judges it was attempting to
+  answer — so "rows in `judge_logs`" alone cannot mean "how many Judges
+  we attempted/paid for," only "how many we got an answer for." Three
+  distinct counts follow from this, all computed at query time, never
+  stored redundantly on `decisions`:
+  - **`attempted_judge_count`** = `SUM(calls.question_count)` for this
+    decision's `calls` rows — the true cost/attempt count, correct even
+    when a whole call errored out.
+  - **`answered_judge_count`** = `COUNT(judge_logs.id)` — Judges that
+    actually got a phase-A raw answer (a subset of attempted; excludes
+    Judges whose call failed entirely).
+  - **`used_judge_count`** = `COUNT(judge_logs.id) FILTER(WHERE was_used)`
+    — a graph-behavior metric (§14's "executed Judge count" maps to
+    this or to `answered_judge_count` depending on what the future
+    metrics spec actually wants to measure; both are available, neither
+    is silently conflated with the other).
 - `decisions`: `experiment_id (PK, with input_id), input_id, aggregate_score, final_confidence, final_decision, is_correct, total_latency, early_stopped, timestamp`
   — `ground_truth` lives on `inputs` (not duplicated here); `is_correct`
-  is derived and stored for query convenience; `executed_judge_count`
-  and `used_judge_count` are computed from `judge_logs` at query time as
-  `COUNT(judge_logs.id)` / `COUNT(judge_logs.id) FILTER(WHERE was_used)`
-  — **`COUNT(judge_logs.id)`, never bare `COUNT(*)`**: a `LEFT JOIN`
-  from `decisions` to `judge_logs` for a decision with zero logs yields
-  one joined row with all-NULL `judge_logs` columns, and `COUNT(*)`
-  would wrongly count that as 1 instead of 0.
+  is derived and stored for query convenience. `attempted_judge_count`/
+  `answered_judge_count`/`used_judge_count` are computed from `calls`/
+  `judge_logs` at query time (above), not stored redundantly.
+  **`COUNT(judge_logs.id)`, never bare `COUNT(*)`**: a `LEFT JOIN` from
+  `decisions` to `judge_logs` for a decision with zero logs yields one
+  joined row with all-NULL `judge_logs` columns, and `COUNT(*)` would
+  wrongly count that as 1 instead of 0.
 
 `src/storage/db.py` owns connection handling and schema creation
 (idempotent `CREATE TABLE IF NOT EXISTS`). No ORM — this is a PoC; raw
