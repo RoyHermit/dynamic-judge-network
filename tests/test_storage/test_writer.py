@@ -78,11 +78,14 @@ async def test_record_interpretation_error_leaves_value_columns_null(conn):
     )
 
     row = conn.execute(
-        "SELECT interpreted_value, interpret_error FROM judge_logs WHERE call_id = ? AND judge_id = ?",
+        "SELECT interpreted_value, interpreted_confidence, evidence, interpret_error "
+        "FROM judge_logs WHERE call_id = ? AND judge_id = ?",
         (call.call_id, "j1"),
     ).fetchone()
     assert row[0] is None
-    assert row[1] == "interpret blew up"
+    assert row[1] is None
+    assert row[2] is None
+    assert row[3] == "interpret blew up"
 
 
 async def test_record_interpretation_rejects_both_decision_and_error(conn):
@@ -96,6 +99,17 @@ async def test_record_interpretation_rejects_both_decision_and_error(conn):
             judge_id="j1",
             decision=Decision(value="HIGH"),
             error="also this",
+        )
+
+
+async def test_record_interpretation_rejects_neither_decision_nor_error(conn):
+    writer = SqliteStorageWriter(conn)
+    call = _make_call()
+    await writer.record_call(call, [_make_raw_record()])
+
+    with pytest.raises(ValueError):
+        await writer.record_interpretation(
+            call_id=call.call_id, judge_id="j1", decision=None, error=None
         )
 
 
@@ -144,10 +158,9 @@ async def test_count_judge_logs_id_is_zero_not_one_for_left_join_with_no_logs(co
     assert row[1] == 0  # the correct count
 
 
-async def test_unique_call_id_judge_id_prevents_duplicate_phase_a_row(conn):
+async def test_unique_call_id_judge_id_prevents_duplicate_judge_logs_row(conn):
     writer = SqliteStorageWriter(conn)
     call = _make_call()
-    await writer.record_call(call, [_make_raw_record()])
 
     with pytest.raises(sqlite3.IntegrityError):
-        await writer.record_call(call, [_make_raw_record()])
+        await writer.record_call(call, [_make_raw_record("j1"), _make_raw_record("j1")])
