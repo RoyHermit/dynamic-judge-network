@@ -201,12 +201,15 @@ call/batch tracking — both corrected per review):
 - `inputs`: `input_id (PK), task_type, input_features_json, ground_truth, created_at`
   — one row per benchmark input, referenced by `judge_logs`/`decisions`
   instead of duplicating features per Judge row.
-- `calls`: `call_id (PK), experiment_id, input_id, stage_index, executor, question_count, latency, timestamp`
+- `calls`: `call_id (PK), experiment_id, input_id, stage_index, executor, question_count, latency, retry_count, token_usage_json, timestamp`
   — one row per actual executor invocation (one Jev batch call, or one
-  solo call for a non-batching executor). This is what lets §2's
-  "stage count drives cost, not Judge count" hypothesis actually be
-  measured: `question_count` vs `latency` across `calls` rows shows
-  whether batching paid off, independent of how many Judges existed.
+  solo call for a non-batching executor). `retry_count` matters because
+  the SDK retries 429/529 internally (§4) — one `calls` row does not
+  imply exactly one provider HTTP request, and `retry_count` is what
+  lets true request volume be reconstructed. `token_usage_json` (or
+  whatever cost unit the provider bills in) is required to test the
+  *cost* half of §2's hypothesis; `question_count`/`latency` alone only
+  cover the *latency* half.
 - `judge_logs`: `id (PK), call_id, experiment_id, input_id, judge_id, judge_version, judge_prompt_or_definition, question_json, judge_output, judge_confidence, judge_latency, activation_source, activation_reason, graph_depth, parent_judge, was_used, timestamp`
   — every row here represents a Judge answer that was actually fetched
   (i.e. cost money/time), whether or not it was later used; `call_id`
@@ -221,9 +224,12 @@ call/batch tracking — both corrected per review):
 - `decisions`: `experiment_id (PK, with input_id), input_id, aggregate_score, final_confidence, final_decision, is_correct, total_latency, early_stopped, timestamp`
   — `ground_truth` lives on `inputs` (not duplicated here); `is_correct`
   is derived and stored for query convenience; `executed_judge_count`
-  and `used_judge_count` are computed from `judge_logs` at query time
-  (a `COUNT(*)` / `COUNT(*) FILTER(WHERE was_used)` join), not stored
-  redundantly.
+  and `used_judge_count` are computed from `judge_logs` at query time as
+  `COUNT(judge_logs.id)` / `COUNT(judge_logs.id) FILTER(WHERE was_used)`
+  — **`COUNT(judge_logs.id)`, never bare `COUNT(*)`**: a `LEFT JOIN`
+  from `decisions` to `judge_logs` for a decision with zero logs yields
+  one joined row with all-NULL `judge_logs` columns, and `COUNT(*)`
+  would wrongly count that as 1 instead of 0.
 
 `src/storage/db.py` owns connection handling and schema creation
 (idempotent `CREATE TABLE IF NOT EXISTS`). No ORM — this is a PoC; raw
@@ -234,12 +240,20 @@ SQL via `sqlite3` is simpler to read, measure, and delete later (§22
 safe to share across concurrent async tasks. Writes go through a single
 dedicated writer (one connection, opened in WAL mode, all writes
 serialized through an `asyncio.Lock` or a single writer task consuming
-a queue). All rows produced while processing one input — its `calls`
-rows, every `judge_logs` row from those calls, and the final `decisions`
-row — are written inside **one SQL transaction per input**, so a crash
-mid-processing leaves either a complete record for that input or none,
-never a partial one. Reads (for analysis) can open their own
-short-lived read connections.
+a queue). Reads (for analysis) can open their own short-lived read
+connections.
+
+Transaction boundaries are per *call*, not per *input*: a `calls` row
+plus its resulting `judge_logs` rows are committed durably immediately
+after that executor invocation returns — that cost/latency has already
+been incurred regardless of what happens afterward, so it must survive
+even if a later stage of the same input crashes. The final `decisions`
+row is written in its own, separate transaction once the input's whole
+pipeline completes. An input that crashes mid-processing therefore has
+a durable, accurate `calls`/`judge_logs` trail but no `decisions` row —
+which correctly reflects reality (money/time were spent, no final
+decision was produced) — rather than one all-or-nothing transaction
+that would silently discard already-incurred cost on any later failure.
 
 ## 6. Directory skeleton (this spec's scope)
 
