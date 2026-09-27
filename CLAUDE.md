@@ -7,20 +7,15 @@ Core rule are discovered by their own trigger description instead.
 ## Security & Data Protection
 - Never output, request, or work with real API keys, passwords, private keys, or
   `.env` contents. Use placeholders (`MOCK_API_KEY`, `example.com`).
-- Deploy/mutate/delete against production, customer staging, or a real database
-  is human-only — never automate it. Read-only diagnostics against those
-  environments are allowed only under the `cloud-readonly-diagnostics` skill's
-  conditions.
+- Deploy/mutate/delete against a real database or any real cloud environment is
+  human-only — never automate it.
 - Never run `git push`, force-push, or bulk file deletion automatically. A human
   executes these.
-- Replace real customer names and system-specific identifiers with placeholders
-  (e.g. "Customer A", "System X") in requirements and design discussions.
-- Assume by default that the customer can browse or clone this repository's
-  Git (direct-delivery is the common case, not a special one). Never commit
-  internal-only business documents — cost estimates, margin/buffer strategy
-  notes, negotiation reasoning. Keep them outside Git or in a `.gitignore`d
-  path; removing them later requires a destructive history rewrite on a repo
-  the customer may have already cloned.
+- Assume this repository may be publicly cloned or browsed (it is a public
+  research project, not a client deliverable). Never commit internal-only
+  notes not meant for a public audience; keep them outside Git or in a
+  `.gitignore`d path — removing them later requires a destructive history
+  rewrite on a repo others may have already cloned.
 
 ## Testing
 - Generate test data and mocks from schemas/type definitions. Never use real
@@ -33,21 +28,20 @@ Core rule are discovered by their own trigger description instead.
   third-party dependency. See the `oss-license-check` skill.
 
 ## Code Review
-- Before declaring an implementation task done, review AI-generated code (your
-  own or a teammate's/AI's) against decomposition, abstraction level,
-  separation of concerns, language idiom, and concrete security threat
-  classes — passing tests is not sufficient. See the `ai-code-review` skill.
+- Before declaring an implementation task done, review AI-generated code
+  against decomposition, abstraction level, separation of concerns, language
+  idiom, and concrete security threat classes — passing tests is not
+  sufficient. See the `ai-code-review` skill.
 
 ## Context Continuity
 - Before clearing context, after a long interruption, or after a spec/plan
   gets approved, write a handoff into a repo-tracked file — never into an AI
-  tool's personal/local memory, which is invisible to teammates who clone
+  tool's personal/local memory, which is invisible to anyone else who clones
   the repository. See the `context-checkpoint` skill.
 
 ## Web Search
 - Web search is limited to general technical research (official docs, library
-  specs, error debugging). Never combine it with client-specific names or
-  keywords.
+  specs, error debugging).
 
 ## Recurring Review Findings
 - If the same review finding (human or AI) repeats 2-3 times, stop re-reviewing
@@ -58,10 +52,9 @@ Core rule are discovered by their own trigger description instead.
 - The hooks in this repo are an auxiliary guardrail, not a substitute for
   sandboxing, human approval, or backups. They can be disabled locally by
   anyone with repo write access.
-- "No real data in tests" and "no client-specific web search" cannot be
-  mechanically enforced by the hooks — regex cannot reliably distinguish real
-  customer data from realistic mock data. Follow these rules by discipline, not
-  because a hook will catch a violation.
+- "No real data in tests" cannot be mechanically enforced by the hooks —
+  regex cannot reliably distinguish real data from realistic mock data.
+  Follow this rule by discipline, not because a hook will catch a violation.
 - The `PostToolUse` audit hook detects secret-like patterns that appear only in
   command *output* (not input), but it cannot guarantee retroactive removal
   from the conversation. Treat it as a detection/log layer, not a guarantee.
