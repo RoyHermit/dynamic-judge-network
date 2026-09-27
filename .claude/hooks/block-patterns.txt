@@ -11,7 +11,7 @@ ey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}
 (postgres|postgresql|mysql|mongodb(\+srv)?)://[^[:space:]]+:[^[:space:]]+@
 
 # --- 機密・設定ファイル参照 ---
-(^|[^A-Za-z0-9_-])\.env([^A-Za-z0-9_-]|$)
+(^|[[:space:]])(cat|type|less|more|head|tail|strings|xxd|od|printenv|source)[[:space:]]+[^[:space:]]*\.env([^A-Za-z0-9_-]|$)
 id_(rsa|dsa|ecdsa|ed25519)([^A-Za-z0-9_-]|$)
 \.pem([^A-Za-z0-9_-]|$)
 \.p12([^A-Za-z0-9_-]|$)
