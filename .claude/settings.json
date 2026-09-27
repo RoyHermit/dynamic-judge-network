@@ -1,0 +1,62 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(rm -rf:*)",
+      "Bash(rm -fr:*)",
+      "Bash(DROP DATABASE:*)",
+      "Bash(drop database:*)",
+      "Bash(TRUNCATE TABLE:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(kubectl apply:*)",
+      "Bash(aws --profile prod:*)",
+      "Bash(alembic upgrade:*)",
+      "Bash(prisma migrate deploy:*)",
+      "Bash(flyway migrate:*)",
+      "Bash(liquibase update:*)",
+      "Bash(npm run migrate:*)",
+      "Bash(rails db:migrate:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(Remove-Item -Recurse -Force:*)",
+      "PowerShell(Remove-Item -Force -Recurse:*)",
+      "PowerShell(DROP DATABASE:*)",
+      "PowerShell(drop database:*)",
+      "PowerShell(TRUNCATE TABLE:*)",
+      "PowerShell(kubectl delete:*)",
+      "PowerShell(kubectl apply:*)",
+      "PowerShell(aws --profile prod:*)",
+      "PowerShell(alembic upgrade:*)",
+      "PowerShell(prisma migrate deploy:*)",
+      "PowerShell(flyway migrate:*)",
+      "PowerShell(liquibase update:*)",
+      "PowerShell(npm run migrate:*)",
+      "PowerShell(rails db:migrate:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-enforce.sh\"", "timeout": 5 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/post-tool-audit.sh\"", "timeout": 5 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-guard.sh\"", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+# --- 認証情報・シークレットトークン ---
+(api|secret|auth|private|access)[_-]?(key|token)[[:space:]]*[:=][[:space:]]*['"]?[A-Za-z0-9_-]{8,}
+AKIA[0-9A-Z]{16}
+ASIA[0-9A-Z]{16}
+ghp_[0-9a-zA-Z]{36}
+github_pat_[0-9a-zA-Z_]{20,}
+gh[ousr]_[0-9a-zA-Z]{20,}
+ey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}
+-----BEGIN[[:space:]]([A-Z0-9_-]+[[:space:]]+)?PRIVATE KEY-----
+(bearer|basic)[[:space:]]+[A-Za-z0-9_.=-]{16,}
+(postgres|postgresql|mysql|mongodb(\+srv)?)://[^[:space:]]+:[^[:space:]]+@
+
+# --- 機密・設定ファイル参照 ---
+(^|[^A-Za-z0-9_-])\.env([^A-Za-z0-9_-]|$)
+id_(rsa|dsa|ecdsa|ed25519)([^A-Za-z0-9_-]|$)
+\.pem([^A-Za-z0-9_-]|$)
+\.p12([^A-Za-z0-9_-]|$)
+credentials\.json([^A-Za-z0-9_-]|$)
+\.aws[\\/]credentials([^A-Za-z0-9_-]|$)

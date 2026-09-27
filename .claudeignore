@@ -1,0 +1,35 @@
+# 注意: これはトークン節約のための仕組みであり、セキュリティ機構ではない。
+# 機密ファイルの読み込み・書き込み対策は .claude/hooks/pre-tool-enforce.sh の
+# file_path スキャン(block-patterns.txt)に一本化している。詳細は CLAUDE.md の
+# "Known Limits" を参照。（このファイルは案件へ配布されるため、非配布のdocs/は参照しない）
+
+# 環境変数・認証・秘密鍵
+.env
+.env.*
+*.pem
+*.key
+*.p12
+credentials.json
+secrets/
+
+# 依存パッケージ・ビルド成果物
+node_modules/
+dist/
+build/
+.next/
+vendor/
+target/
+
+# ログ・実データ・キャッシュ
+*.log
+logs/
+*.sqlite
+dump.rdb
+data/exports/
+.cache/
+
+# ガードレール監査ログ（post-tool-audit.shの出力）
+.claude/guardrail-audit.log
+
+# Git内部
+.git/
