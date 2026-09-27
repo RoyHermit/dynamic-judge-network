@@ -1,0 +1,40 @@
+# --- リモート反映・破壊的操作（人間承認必須） ---
+git([[:space:]]+--[a-z-]+([[:space:]]+[^[:space:]]+)?)*[[:space:]]+push
+git([[:space:]]+-[A-Za-z]+([[:space:]]+[^[:space:]]+)?)*[[:space:]]+push
+# rmのパス引数はUnix風root([/~])だけでなく、Git Bash上でも渡せるWindows形式の
+# ドライブレターパス(C:/... や C:\...)も許容する。[/~]のみだと`rm -rf C:/Users/x`が
+# 素通りしていた(未文書化ギャップ、本コミットで解消)。
+rm[[:space:]]+(-[a-z-]+[[:space:]]+)*-[a-z]*r[a-z]*f[a-z]*([[:space:]]+--)?[[:space:]]+([/~]|[A-Za-z]:[\\/])
+rm[[:space:]]+(-[a-z-]+[[:space:]]+)*-[a-z]*f[a-z]*r[a-z]*([[:space:]]+--)?[[:space:]]+([/~]|[A-Za-z]:[\\/])
+rm([[:space:]]+-[a-z-]+)*[[:space:]]+-[a-z]*r[a-z]*[[:space:]]+-[a-z]*f[a-z]*([[:space:]]+--)?[[:space:]]+([/~]|[A-Za-z]:[\\/])
+rm([[:space:]]+-[a-z-]+)*[[:space:]]+-[a-z]*f[a-z]*[[:space:]]+-[a-z]*r[a-z]*([[:space:]]+--)?[[:space:]]+([/~]|[A-Za-z]:[\\/])
+rm([[:space:]]+--[a-z-]+)*[[:space:]]+--recursive([[:space:]]+--[a-z-]+)*[[:space:]]+--force([[:space:]]+--)?[[:space:]]+([/~]|[A-Za-z]:[\\/])
+rm([[:space:]]+--[a-z-]+)*[[:space:]]+--force([[:space:]]+--[a-z-]+)*[[:space:]]+--recursive([[:space:]]+--)?[[:space:]]+([/~]|[A-Za-z]:[\\/])
+
+# --- 上記と同義のPowerShellコマンド(Windows/PowerShellツール利用時) ---
+# Remove-Itemは-Path省略時に対象パスを最初の位置引数として取れるため(例:
+# `Remove-Item C:\work -Recurse -Force`)、フラグ直後限定のパターンだと素通りする。
+# `.*`で cmdlet/エイリアスと-Recurse/-Forceの間に任意の引数(パス・-Path等)を許容する。
+# エイリアスはRemove-Itemの既定のもの全て(ri, rm, rmdir, rd, del, erase)を対象。
+# 旧版はri/rmのみでdel/erase/rd/rmdirを見落としていた(Codexレビュー指摘)。
+# PowerShellはパラメータ名の一意な省略形(例: -Rec, -R, -For, -Fo)を許容するため、
+# フル引数名だけを見ると `del C:\work -Rec -For` のような省略形コマンドが
+# 素通りする(Codexレビュー指摘)。ネストした任意グループで -r/-re/.../-recurse と
+# -f/-fo/.../-force の各省略段階をすべて許容し、`\>` で単語境界を要求することで
+# -related や -filter のような無関係な単語への誤爆は避けつつ省略形を検知する。
+\<(remove-item|ri|rm|rmdir|rd|del|erase)\>.*-r(e(c(u(r(s(e)?)?)?)?)?)?\>.*-f(o(r(c(e)?)?)?)?\>
+\<(remove-item|ri|rm|rmdir|rd|del|erase)\>.*-f(o(r(c(e)?)?)?)?\>.*-r(e(c(u(r(s(e)?)?)?)?)?)?\>
+
+drop[[:space:]]+database
+truncate[[:space:]]+table
+kubectl([[:space:]]+--[a-z-]+(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)?)*[[:space:]]+(delete|apply)
+aws[[:space:]]+--profile(=|[[:space:]]+)prod
+
+# --- DBマイグレーション実行（社内正式ガイドライン4.2で明記） ---
+alembic[[:space:]]+upgrade
+prisma[[:space:]]+migrate[[:space:]]+deploy
+manage\.py[[:space:]]+migrate
+flyway[[:space:]]+migrate
+liquibase[[:space:]]+update
+npm[[:space:]]+run[[:space:]]+migrate
+rails[[:space:]]+db:migrate

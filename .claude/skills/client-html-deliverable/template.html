@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[資料タイトル]</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #e1e4ea;
+    --text: #1f2430;
+    --text-sub: #5b6270;
+    --accent: #2f6fed;
+    --accent-soft: #eaf1ff;
+    --quote-bg: #fbf6ea;
+    --quote-border: #e8c46a;
+    --warn-bg: #fff2f0;
+    --warn-border: #f2a99a;
+    --ask-bg: #eefaf1;
+    --ask-border: #7fc99a;
+    --status-draft: #eb6f92;
+    --status-approved: #3e8fb0;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.75;
+    font-size: 15px;
+  }
+  .page { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header.doc-header { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 32px; margin-bottom: 28px; }
+  header.doc-header h1 { margin: 0 0 6px; font-size: 1.5rem; letter-spacing: 0.01em; }
+  .status-badge {
+    display: inline-block; background: var(--status-draft); color: #fff;
+    font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+    letter-spacing: 0.05em; margin-bottom: 14px;
+  }
+  /* 承認済みにする場合は .status-badge に style="background: var(--status-approved)" */
+  .meta-box { background: var(--accent-soft); border-radius: var(--radius); padding: 14px 18px; font-size: 0.88rem; color: var(--text-sub); }
+  .meta-box dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+  .meta-box dt { font-weight: 600; color: var(--text); white-space: nowrap; }
+  .meta-box dd { margin: 0; }
+  .meta-box code { background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+
+  /* 入力マニフェスト・選択レシピ・改訂履歴。JS不要のnative <details>で開閉、既定でopen=印刷/JS無効でも全文表示 */
+  details.doc-manifest { margin-top: 14px; }
+  details.doc-manifest summary { cursor: pointer; font-size: 0.82rem; color: var(--text-sub); font-weight: 600; }
+  details.doc-manifest .manifest-body { margin-top: 10px; }
+  details.doc-manifest h4 { font-size: 0.78rem; color: var(--text-sub); margin: 16px 0 6px; letter-spacing: 0.03em; }
+  details.doc-manifest h4:first-child { margin-top: 0; }
+  details.doc-manifest table { font-size: 0.82rem; }
+
+  nav.toc { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 24px; margin-bottom: 32px; font-size: 0.9rem; }
+  nav.toc h2 { font-size: 0.85rem; margin: 0 0 10px; color: var(--text-sub); letter-spacing: 0.08em; text-transform: uppercase; }
+  nav.toc ol { margin: 0; padding-left: 1.3em; }
+  nav.toc li { margin-bottom: 4px; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  nav.toc .sub { list-style: none; padding-left: 1.1em; margin: 2px 0 8px; }
+  nav.toc .sub li { margin-bottom: 2px; font-size: 0.92em; }
+  nav.toc .sub a { color: var(--text-sub); }
+
+  section.chapter { margin-bottom: 36px; }
+  section.chapter > h2 { font-size: 1.15rem; border-left: 4px solid var(--accent); padding-left: 12px; margin: 0 0 18px; scroll-margin-top: 16px; }
+
+  article.qa { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 28px; margin-bottom: 20px; scroll-margin-top: 16px; }
+  article.qa h3 { margin: 0 0 14px; font-size: 1.02rem; display: flex; align-items: baseline; gap: 8px; }
+  article.qa h3 .qnum { background: var(--accent); color: #fff; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 5px; flex-shrink: 0; }
+  article.qa h4 { font-size: 0.86rem; color: var(--text-sub); margin: 20px 0 8px; letter-spacing: 0.03em; }
+  article.qa h4:first-of-type { margin-top: 0; }
+
+  /* 客先の実回答の引用。ask/warn/noteのcalloutとは色系統を変えて区別する */
+  blockquote.client-answer { background: var(--quote-bg); border-left: 4px solid var(--quote-border); border-radius: 0 6px 6px 0; margin: 0 0 16px; padding: 10px 16px; font-size: 0.92rem; }
+  blockquote.client-answer .label { display: block; font-size: 0.72rem; font-weight: 700; color: #9a7d1f; letter-spacing: 0.05em; margin-bottom: 3px; }
+
+  /* callout 3種。用途を混ぜない: ask=こちらから確認したいこと / warn=既知のリスク / note=前回資料からの訂正 */
+  .callout { border-radius: 6px; padding: 12px 16px; font-size: 0.92rem; margin: 16px 0; }
+  .callout.ask { background: var(--ask-bg); border: 1px solid var(--ask-border); }
+  .callout.ask::before { content: "🔎 確認したいこと"; display: block; font-weight: 700; font-size: 0.78rem; color: #2f7a4d; margin-bottom: 4px; }
+  .callout.warn { background: var(--warn-bg); border: 1px solid var(--warn-border); }
+  .callout.warn::before { content: "⚠ 既知のリスク"; display: block; font-weight: 700; font-size: 0.78rem; color: #b5432e; margin-bottom: 4px; }
+  .callout.note { background: var(--accent-soft); border: 1px solid #c7dbfb; }
+  .callout.note::before { content: "訂正"; display: block; font-weight: 700; font-size: 0.78rem; color: var(--accent); margin-bottom: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 12px 0 16px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f2f6; font-weight: 600; }
+  tbody tr:nth-child(even) td { background: #fafbfc; }
+
+  .diagram { background: #fafbfd; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 14px 0; overflow-x: auto; }
+  .diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .diagram .caption { text-align: center; font-size: 0.78rem; color: var(--text-sub); margin-top: 8px; }
+
+  /* 手順フロー。長文が混じるステップは横並び(flexbox row)にすると箱が潰れて歪むため、必ず縦積みで組む */
+  .flow-steps { display: flex; flex-direction: column; max-width: 520px; margin: 0 auto; }
+  .flow-step { display: flex; gap: 14px; align-items: flex-start; }
+  .flow-step .fs-num { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .flow-step .fs-body { flex: 1; background: var(--panel); border: 1.5px solid var(--accent); border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; }
+  .flow-step-connector { width: 28px; display: flex; justify-content: center; color: var(--text-sub); font-size: 1rem; padding: 2px 0; }
+  .flow-branch-note { margin: 6px 0 6px 42px; font-size: 0.78rem; color: var(--text-sub); border-left: 2px dashed #c7d0dc; padding-left: 10px; }
+
+  /* 画面イメージ／UIモックアップの共通フレーム。ASCIIアート(┌─┐)の代わりにこれを使う */
+  .ui-frame { background: #eef0f4; border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 14px 0; }
+  .ui-frame .frame-title { font-size: 0.74rem; color: var(--text-sub); margin: 0 0 12px; font-weight: 600; letter-spacing: 0.03em; }
+  .mock-btn { display: inline-block; background: var(--accent); color: #fff; font-size: 0.78rem; font-weight: 600; padding: 6px 14px; border-radius: 6px; }
+
+  /* パターン1: 詳細サイドパネル */
+  .mock-panel { background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 4px 14px rgba(20,25,40,0.08); width: min(320px, 100%); overflow: hidden; margin: 0 auto; }
+  .mock-panel .mp-head { background: #f5f6f8; border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; font-weight: 700; }
+  .mock-panel .mp-close { color: var(--text-sub); font-size: 0.9rem; }
+  .mock-panel .mp-body { padding: 14px; }
+  .mock-panel .mp-row { font-size: 0.82rem; margin-bottom: 10px; }
+  .mock-panel .mp-row .k { color: var(--text-sub); margin-right: 6px; }
+  .mock-panel .mp-tag { display: inline-block; background: var(--accent-soft); color: var(--accent); font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+  .mock-panel .mp-section { margin-top: 14px; }
+  .mock-panel .mp-section-title { font-size: 0.76rem; font-weight: 700; color: var(--text-sub); margin-bottom: 6px; }
+  .mock-panel .mp-section-body { font-size: 0.8rem; background: #fafbfd; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; line-height: 1.6; }
+  .mock-panel .mp-file { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 0; }
+
+  /* パターン1b: モーダル（中央オーバーレイ）。.mock-panelを暗い背景でラップして中央寄せするだけでサイドパネルと区別できる */
+  .mock-modal-backdrop {
+    background: repeating-linear-gradient(45deg, rgba(0,0,0,0.05), rgba(0,0,0,0.05) 8px, rgba(0,0,0,0.02) 8px, rgba(0,0,0,0.02) 16px);
+    border-radius: 10px;
+    padding: 32px 20px;
+    display: flex;
+    justify-content: center;
+  }
+  .mock-modal-backdrop .mock-panel { box-shadow: 0 10px 30px rgba(20,25,40,0.18); }
+
+  /* パターン2: タブ付き一覧・辞書画面 */
+  .mock-tabbar { display: flex; gap: 4px; margin-bottom: 12px; }
+  .mock-tab { font-size: 0.78rem; padding: 6px 14px; border-radius: 6px 6px 0 0; color: var(--text-sub); }
+  .mock-tab.active { background: #fff; color: var(--accent); font-weight: 700; border: 1px solid var(--border); border-bottom: 1px solid #fff; }
+  .mock-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  .mock-table-wrap { background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .mock-table-wrap table { margin: 0; }
+  .chip-list { display: flex; flex-direction: column; gap: 4px; }
+  .chip { display: inline-block; background: #eef0f4; border-radius: 5px; padding: 2px 8px; font-size: 0.78rem; width: fit-content; }
+
+  /* パターン3: 対話モーダル・チャットUI */
+  .mock-chat { background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .mock-chat .mc-head { background: #f5f6f8; border-bottom: 1px solid var(--border); padding: 8px 14px; font-size: 0.78rem; font-weight: 700; color: var(--text-sub); }
+  .mock-chat .mc-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .chat-bubble { max-width: 80%; font-size: 0.8rem; padding: 8px 12px; border-radius: 12px; line-height: 1.5; }
+  .chat-bubble.ai { background: #eef0f4; align-self: flex-start; border-bottom-left-radius: 3px; }
+  .chat-bubble.user { background: var(--accent); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+  .chat-bubble .who { display: block; font-size: 0.68rem; opacity: 0.7; margin-bottom: 2px; }
+  .mock-arrow-down { text-align: center; color: var(--text-sub); font-size: 0.85rem; margin: 4px 0 14px; }
+
+  .conclusion { background: #f0f2f6; border-radius: 6px; padding: 12px 16px; font-size: 0.9rem; margin: 14px 0; }
+  .conclusion .label { font-weight: 700; margin-right: 4px; }
+
+  code.inline { background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; font-size: 0.88em; }
+  p { margin: 0 0 12px; }
+  ul, ol.body-list { margin: 0 0 14px; padding-left: 1.4em; }
+  ul li, ol.body-list li { margin-bottom: 4px; }
+  strong { font-weight: 700; }
+
+  footer.review { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 28px; font-size: 0.9rem; color: var(--text-sub); }
+  footer.review h2 { font-size: 1rem; color: var(--text); margin: 0 0 8px; }
+
+  @media (max-width: 600px) {
+    .page { padding: 20px 12px 60px; }
+    header.doc-header, article.qa, footer.review { padding: 18px; }
+  }
+  @media print {
+    body { background: #fff; }
+    article.qa, header.doc-header, nav.toc, footer.review { border: 1px solid #ccc; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="doc-header">
+    <span class="status-badge">ドラフト（未レビュー承認）</span>
+    <h1>[資料タイトル]</h1>
+    <div class="meta-box">
+      <dl>
+        <dt>目的</dt>
+        <dd>[この資料が何のために誰向けに作られたか]</dd>
+        <dt>参照元</dt>
+        <dd>[元になったMD/CSV/仕様書などへのパス]</dd>
+        <dt>文書ID</dt>
+        <dd>[例: REQ-001]</dd>
+        <dt>版</dt>
+        <dd>[例: v1.0]</dd>
+        <dt>生成元</dt>
+        <dd>コミット <code>[commit-hash]</code>／生成日時 <code>[YYYY-MM-DD HH:MM]</code></dd>
+      </dl>
+    </div>
+
+    <!-- 入力マニフェスト・選択レシピ・改訂履歴。再生成時の構成ドリフトを検知できるよう、全成果物共通で必ず埋める -->
+    <details class="doc-manifest" open>
+      <summary>入力マニフェスト・選択レシピ・改訂履歴</summary>
+      <div class="manifest-body">
+        <h4>入力ファイル</h4>
+        <table>
+          <thead><tr><th>パス</th><th>内容ハッシュ</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td><code>[相対パス]</code></td><td><code>[sha256先頭8桁など]</code></td><td>[個別の補足があれば]</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>生成時コミットID</th><th>未コミット変更の有無</th></tr></thead>
+          <tbody>
+            <tr><td><code>[commit-hash]</code></td><td>[あり: 対象パスを列挙 / なし]</td></tr>
+          </tbody>
+        </table>
+
+        <h4>外部入力</h4>
+        <p>[客先提出用Excel等の識別子・版。無ければ「なし」]</p>
+
+        <h4>選択レシピ</h4>
+        <table>
+          <thead><tr><th>項目</th><th>内容</th></tr></thead>
+          <tbody>
+            <tr><td>文書タイプ</td><td>[references/doc-types/配下、使用したファイル名]</td></tr>
+            <tr><td>適用コンポーネント</td><td>[references/components/配下、使用したものを列挙。無ければ「なし」]</td></tr>
+            <tr><td>非適用理由</td><td>[使わなかった主要コンポーネントとその理由を簡潔に]</td></tr>
+            <tr><td>出力形態</td><td>[単一ファイル / 複数ファイル分割(構成: references/components/multifile-packaging.md参照)]</td></tr>
+          </tbody>
+        </table>
+
+        <h4>改訂履歴</h4>
+        <table>
+          <thead><tr><th>版</th><th>日付</th><th>変更内容</th></tr></thead>
+          <tbody>
+            <tr><td>v1.0</td><td>[YYYY-MM-DD]</td><td>初版</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </header>
+
+  <nav class="toc">
+    <h2>目次</h2>
+    <ol>
+      <li><a href="#ch1">[章タイトル1]</a>
+        <ol class="sub">
+          <li><a href="#q1">[サブ項目1]</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+
+  <section class="chapter" id="ch1">
+    <h2>1. [章タイトル1]</h2>
+
+    <!--
+      以下はhearing-explanation型(references/doc-types/hearing-explanation.md)の本文パターン例。
+      要件定義書・基本設計書などの他の文書タイプを作る場合は、このsection.chapter以下を
+      丸ごと、選んだreferences/doc-types/配下のファイルが示す章立て・本文パターンに置き換える。
+      table/diagram/ui-frame(mock-panel等)/callout/conclusionの各コンポーネントは文書タイプを問わず共通利用可。
+    -->
+
+    <!-- 標準パターン: 客先回答→説明→確認事項 -->
+    <article class="qa" id="q1">
+      <h3><span class="qnum">Q1</span> [質問の見出し]</h3>
+
+      <blockquote class="client-answer">
+        <span class="label">客先回答</span>
+        「[客先の実発言をそのまま引用]」
+      </blockquote>
+
+      <h4>[説明の小見出し]</h4>
+      <p>[本文説明]</p>
+
+      <table>
+        <thead><tr><th>観点</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>[項目]</td><td>[内容]</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">[既知のリスク・注意点があれば]</div>
+
+      <div class="callout ask">[こちらから改めて確認したいこと]</div>
+    </article>
+
+    <!-- 手順フローが要る場合: 横並びflex(flow-row)は使わない。縦積みflow-stepsのみ使う -->
+    <article class="qa" id="q2">
+      <h3><span class="qnum">Q2</span> [処理フローの説明が要る質問]</h3>
+      <div class="diagram">
+        <div class="flow-steps">
+          <div class="flow-step"><div class="fs-num">1</div><div class="fs-body">[ステップ1、長文でも崩れない]</div></div>
+          <div class="flow-step-connector">↓</div>
+          <div class="flow-step"><div class="fs-num">2</div><div class="fs-body">[ステップ2]</div></div>
+          <div class="flow-branch-note">↳ [補足・分岐の注記]</div>
+          <div class="flow-step-connector">↓</div>
+          <div class="flow-step"><div class="fs-num">3</div><div class="fs-body">[ステップ3]</div></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 画面イメージが要る場合: ASCIIアートではなくこの4パターンから選ぶ -->
+    <article class="qa" id="q3">
+      <h3><span class="qnum">Q3</span> [UIイメージの説明が要る質問]</h3>
+
+      <h4>パターン1: 詳細サイドパネル（スライドインで一覧と併存）</h4>
+      <div class="ui-frame">
+        <p class="frame-title">画面イメージ：[パネルの用途]</p>
+        <div class="mock-panel">
+          <div class="mp-head"><span>[パネルタイトル]</span><span class="mp-close">✕</span></div>
+          <div class="mp-body">
+            <div class="mp-row"><strong>[主項目]</strong>（[補足]）</div>
+            <div class="mp-row"><span class="k">属性</span><span class="mp-tag">[タグ1]</span> <span class="mp-tag">[タグ2]</span></div>
+            <div class="mp-section">
+              <div class="mp-section-title">▼ [セクション見出し]</div>
+              <div class="mp-section-body">[セクション本文]</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h4>パターン1b: モーダル（画面中央のダイアログ、暗い背景でオーバーレイ）</h4>
+      <div class="ui-frame">
+        <p class="frame-title">画面イメージ：[モーダルの用途]</p>
+        <div class="mock-modal-backdrop">
+          <div class="mock-panel">
+            <div class="mp-head"><span>[モーダルタイトル]</span><span class="mp-close">✕</span></div>
+            <div class="mp-body">
+              <div class="mp-row"><strong>[主項目]</strong>（[補足]）</div>
+              <div class="mp-section">
+                <div class="mp-section-title">▼ [セクション見出し]</div>
+                <div class="mp-section-body">[セクション本文]</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h4>パターン2: タブ付き一覧・辞書画面</h4>
+      <div class="ui-frame">
+        <p class="frame-title">画面イメージ：[一覧画面の用途]</p>
+        <div class="mock-tabbar">
+          <div class="mock-tab active">[タブ1]</div>
+          <div class="mock-tab">[タブ2]</div>
+        </div>
+        <div class="mock-toolbar"><span class="mock-btn">＋ 新規登録</span></div>
+        <div class="mock-table-wrap">
+          <table>
+            <thead><tr><th>列1</th><th>列2</th></tr></thead>
+            <tbody>
+              <tr><td>[値]</td><td class="chip-list"><span class="chip">[別名1]</span><span class="chip">[別名2]</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h4>パターン3: 対話モーダル・チャットUI</h4>
+      <div class="ui-frame">
+        <p class="frame-title">画面イメージ：[モーダルの用途]</p>
+        <div class="mock-chat">
+          <div class="mc-head">[モーダルタイトル]</div>
+          <div class="mc-body">
+            <div class="chat-bubble ai"><span class="who">AI</span>[AI側の発話]</div>
+            <div class="chat-bubble user"><span class="who">You</span>[ユーザー側の発話]</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="conclusion"><span class="label">結論:</span>[まとめ]</div>
+    </article>
+  </section>
+
+  <footer class="review">
+    <h2>レビュー・承認について</h2>
+    <p style="margin:0;">[承認フローの説明。例: 本資料はドラフト。承認後に元のソース資料の状態を更新する]</p>
+  </footer>
+
+</div>
+</body>
+</html>
