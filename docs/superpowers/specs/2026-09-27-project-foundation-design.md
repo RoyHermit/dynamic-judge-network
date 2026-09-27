@@ -76,8 +76,17 @@ Jev-specific shape.
 
 ```python
 class Judge(Protocol):
-    judge_id: str  # stable, unique — used as the result key (Judges are
-                    # not assumed hashable/identity-stable across runs)
+    judge_id: str            # stable, unique — used as the result key
+                               # (Judges are not assumed hashable/
+                               # identity-stable across runs)
+    judge_version: str        # this Judge's own version, e.g. "1.0" or
+                                # a content hash — the executor reads
+                                # this directly into `RawJudgeRecord`,
+                                # it does not infer it from elsewhere
+    judge_prompt_or_definition: str  # identifies this Judge's definition
+                                       # for reproducibility (§5/§14) —
+                                       # e.g. a source path, or a short
+                                       # rendered description of its logic
 
     def to_question(self, state: State) -> Question:
         """Declare the typed question this Judge wants answered against
@@ -201,7 +210,23 @@ class JudgeExecutor(Protocol):
     the SDK's internal retries are exhausted), the executor still calls
     `writer.record_call(...)` with `status="error"`, whatever partial
     telemetry (latency, retry_count if known) is available, and
-    `raw_judge_records=[]`."""
+    `raw_judge_records=[]`.
+
+    Partial-result semantics: `run_stage` does NOT raise for either
+    expected failure mode above (a provider call failing, or one
+    Judge's `interpret()` raising) — those are recorded (per the
+    ordering guarantee) and reflected by *absence*, not by an
+    exception. A `judge_id` is missing from the returned
+    `StageResult.decisions` if either its provider call failed or its
+    `interpret()` raised; every other Judge in the same stage still
+    gets its `Decision` normally. Callers distinguish "this Judge
+    produced nothing" from "this Judge decided X" purely by dict
+    membership — never by catching an exception — which keeps this
+    consistent with context doc §22 ("SKIP is valid"): a missing Judge
+    decision is data for the aggregator to handle, not a crash. The
+    only case `run_stage` raises for is the duplicate-`judge_id`
+    `ValueError` above — a caller programming error, not a runtime
+    condition."""
 
     async def run_stage(
         self,
