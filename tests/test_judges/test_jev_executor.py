@@ -218,3 +218,63 @@ async def test_non_batching_executor_returns_one_call_record_per_judge():
     )
 
     assert len(result.calls) == 3
+
+
+async def test_missing_answer_still_records_call_and_omits_that_judge():
+    """The SDK silently drops unparseable answers, so a judge can be absent
+    from response.answers. The paid-for call must still be recorded (§3)
+    and the unanswered judge simply has no decision."""
+    response = ts.SystemOneResponse(
+        model="jev-1",
+        usage=ts.Usage(input_tokens=10, output_tokens=0),
+        answers={
+            "present": ts.ChoiceAnswer(
+                choice="HIGH", confidence=0.8, probabilities={"HIGH": 0.8, "LOW": 0.2}
+            )
+        },
+    )
+    writer = FakeWriter()
+    executor = JevStageExecutor(FakeClient(response=response), writer)
+
+    result = await executor.run_stage(
+        state={},
+        judges=[FakeJudge("present"), FakeJudge("missing")],
+        experiment_id="e1",
+        input_id="i1",
+        stage_index=0,
+    )
+
+    assert "missing" not in result.decisions
+    assert result.decisions["present"].value == "HIGH"
+    assert result.decisions["present"].confidence == pytest.approx(0.8)
+    assert result.calls[0].question_count == 2
+    assert writer.events[0] == ("record_call", result.calls[0].call_id, "success")
+    interpreted = [e[2] for e in writer.events if e[0] == "record_interpretation"]
+    assert interpreted == ["present"]
+
+
+async def test_score_question_round_trips_to_decision():
+    response = ts.SystemOneResponse(
+        model="jev-1",
+        usage=ts.Usage(input_tokens=5, output_tokens=0),
+        answers={
+            "j1": ts.ScoreAnswer(
+                score=0.7, confidence=0.65, legend={}, probabilities={}
+            )
+        },
+    )
+    writer = FakeWriter()
+    executor = JevStageExecutor(FakeClient(response=response), writer)
+
+    result = await executor.run_stage(
+        state={},
+        judges=[FakeJudge("j1", kind="score")],
+        experiment_id="e1",
+        input_id="i1",
+        stage_index=0,
+    )
+
+    decision = result.decisions["j1"]
+    assert decision.value == pytest.approx(0.7)
+    assert decision.confidence == pytest.approx(0.65)
+    assert [e[0] for e in writer.events] == ["record_call", "record_interpretation"]

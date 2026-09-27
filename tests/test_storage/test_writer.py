@@ -164,3 +164,25 @@ async def test_unique_call_id_judge_id_prevents_duplicate_judge_logs_row(conn):
 
     with pytest.raises(sqlite3.IntegrityError):
         await writer.record_call(call, [_make_raw_record("j1"), _make_raw_record("j1")])
+
+
+async def test_failed_record_call_is_rolled_back_not_committed_by_next_write(conn):
+    """A failed record_call must roll back its partial transaction, otherwise
+    the next write's commit would silently persist the half-written batch."""
+    writer = SqliteStorageWriter(conn)
+    failed_call = _make_call("failed")
+
+    with pytest.raises(sqlite3.IntegrityError):
+        await writer.record_call(
+            failed_call, [_make_raw_record("j1"), _make_raw_record("j1")]
+        )
+
+    ok_call = _make_call("ok")
+    await writer.record_call(ok_call, [_make_raw_record("j1")])
+
+    call_ids = {row[0] for row in conn.execute("SELECT call_id FROM calls")}
+    assert call_ids == {"ok"}
+    failed_logs = conn.execute(
+        "SELECT COUNT(*) FROM judge_logs WHERE call_id = ?", ("failed",)
+    ).fetchone()[0]
+    assert failed_logs == 0

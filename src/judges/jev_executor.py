@@ -140,6 +140,13 @@ class JevStageExecutor:
             status="success",
             error_message=None,
         )
+        # The SDK silently drops answers it cannot parse, so a judge may be
+        # absent from response.answers. Only answered judges get a raw
+        # record (and later a decision); the call itself is recorded
+        # regardless, since it was already paid for (spec §3).
+        answered_judges = [
+            judge for judge in judges if judge.judge_id in response.answers
+        ]
         raw_records = [
             RawJudgeRecord(
                 judge_id=judge.judge_id,
@@ -149,13 +156,13 @@ class JevStageExecutor:
                 raw_answer=_to_dj_answer(response.answers[judge.judge_id]),
                 latency=latency,
             )
-            for judge in judges
+            for judge in answered_judges
         ]
         await self._writer.record_call(call, raw_records)
 
         decisions: dict[str, Decision] = {}
         raw_by_judge_id = {record.judge_id: record for record in raw_records}
-        for judge in judges:
+        for judge in answered_judges:
             raw_record = raw_by_judge_id[judge.judge_id]
             try:
                 decision = judge.interpret(raw_record.raw_answer)
