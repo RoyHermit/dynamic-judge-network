@@ -3,8 +3,8 @@
 **Dynamic Judge Network (DJN)** is a research architecture for a
 question this project treats as still open: can a decision be reached by
 activating only the small subset of specialized evaluators a given
-problem actually needs, rather than either running one large model or
-running every evaluator every time?
+problem requires, rather than either running one large model or running
+every evaluator every time?
 
 Research framing: **Bio-inspired Dynamic Sparse Multi-Judge Reasoning.**
 
@@ -29,8 +29,8 @@ view on the same input — and combine their (possibly conflicting)
 opinions into a final decision. This project's first Judge *backend* is
 **Jev**, TypeSafe AI's non-generative "System One" model (see
 "Architecture" for the executor that talks to it), but the architecture
-is explicitly not Jev-specific: a Judge can just as well be a small LLM,
-a classifier, a rule engine, or a numerical model.
+is explicitly not Jev-specific: a Judge may equally be a small LLM, a
+classifier, a rule engine, or a numerical model.
 
 ## Central hypothesis
 
@@ -48,7 +48,7 @@ project's guiding rule is **architecture follows evidence**: every
 mechanism below gets added one at a time, against a baseline, so a
 measured gain (or its absence) can be attributed to the specific
 mechanism that produced it — never to several changes at once. Nothing
-in this README describing a mechanism the project hasn't built yet
+in this README describing a mechanism the project has not built yet
 (see "Status") should be read as a result; it is the plan the "Results"
 section will eventually be filled in against.
 
@@ -56,35 +56,21 @@ section will eventually be filled in against.
 
 This is the shape the finished network is meant to have — most of it is
 not built yet (see Status), but understanding the target loop is what
-makes the individual mechanisms below make sense together, rather than
-as an unrelated list:
+makes the individual mechanisms below cohere, rather than read as an
+unrelated list:
 
-```
-Stimulus (input)
-   │
-   ▼
-Sparse activation — an initial set of Judges is asked
-   │
-   ▼
-Local judgments — each Judge returns its own value + confidence
-   │
-   ▼
-Excitation / inhibition — strong signals make related Judges more or
-   │                       less likely to fire next
-   ▼
-Counter-evidence — a Judge is deliberately fired to argue against
-   │                the currently favored direction
-   ▼
-Consensus formation — an aggregator combines everything fired so far
-   │
-   ├── uncertain ──> fire more Judges, deepen the graph
-   │
-   └── confident ──> stop and decide
-   │
-   ▼
-Outcome ──> compare against ground truth ──> strengthen paths that were
-                                              right, weaken paths that
-                                              were wrong
+```mermaid
+flowchart TD
+    A(["Stimulus (input)"]) --> B["Sparse activation<br/>(an initial set of Judges is asked)"]
+    B --> C["Local judgments<br/>(each Judge returns a value + confidence)"]
+    C --> D["Excitation / inhibition<br/>(adjusts which Judges are more or less likely to fire next)"]
+    D --> E["Counter-evidence<br/>(a Judge is deliberately fired to argue<br/>against the currently favored direction)"]
+    E --> F{"Consensus<br/>formation"}
+    F -- uncertain --> G["Fire more Judges,<br/>deepen the graph"]
+    G --> C
+    F -- confident --> H["Stop and decide"]
+    H --> I(["Outcome"])
+    I -. "compare against ground truth;<br/>strengthen paths that were right,<br/>weaken paths that were wrong" .-> D
 ```
 
 Two distinctions this loop depends on, both already reflected in the
@@ -95,41 +81,50 @@ storage schema even though nothing writes to the relevant columns yet
   Judge's question can be *asked* in the same batch as everything else
   even before the network has decided the Judge is "activated" — the
   routing logic decides afterward whether to *use* that answer or discard
-  it. A fetched-but-discarded Judge still cost something; an activated
-  Judge is one whose answer was actually used. Reported Judge counts need
-  to say which of these they mean.
+  it. A fetched-but-discarded Judge still incurred a cost; an activated
+  Judge is one whose answer was used. Reported Judge counts should
+  specify which of these they mean.
 - **Depth vs. breadth.** Judges with no dependency on each other can be
   batched into one stage and answered in parallel; latency is expected
   to track the number of *sequential* stages far more than it tracks
   total Judge count — a network that fires many Judges across few
-  stages should, in principle, be faster than one that fires fewer
-  Judges across many stages. This is one of the hypotheses Experiment 1
-  onward exists to check, not something already observed on this
-  project's own data.
+  stages would, in principle, be expected to run faster than one that
+  fires fewer Judges across many stages. This is one of the hypotheses
+  Experiment 1 onward exists to check, not something already observed
+  on this project's own data.
 
-## Why not just an ensemble
+## Distinction from a fixed ensemble
 
 A fixed ensemble runs the same set of models on every input:
 
-```
-Input ──┬──> Judge 1 ─┐
-         ├──> Judge 2 ─┤
-         ├──> Judge 3 ─┼──> Average / Weighted Vote
-         └──> Judge N ─┘
+```mermaid
+flowchart LR
+    In(["Input"]) --> J1["Judge 1"]
+    In --> J2["Judge 2"]
+    In --> J3["Judge 3"]
+    In --> JN["Judge N"]
+    J1 --> Agg["Average /<br/>Weighted Vote"]
+    J2 --> Agg
+    J3 --> Agg
+    JN --> Agg
 ```
 
 That is not a strawman — a diverse fixed ensemble with per-role Judges
 and weighted aggregation is one of this project's own required
 baselines. The distinction a Dynamic Judge Network is testing for is not
-diversity or weighting (a good fixed ensemble can have both); it's
-**fixed execution vs. input-dependent execution**: in DJN, which Judges
-run next is itself a function of what earlier Judges concluded on *this*
-input, not a fixed schedule run identically on every input:
+diversity or weighting (a good fixed ensemble can have both); it is
+**fixed execution versus input-dependent execution**: in DJN, which
+Judges run next is itself a function of what earlier Judges concluded on
+*this* input, not a fixed schedule run identically on every input:
 
-```
-Input ──> Judge 1 ──┬──> Judge 4 ──┐
-                     │              ├──> Decision
-          Judge 2 ───┴──> Judge 5 ──┘
+```mermaid
+flowchart LR
+    In(["Input"]) --> J1["Judge 1"]
+    In --> J2["Judge 2"]
+    J1 --> J4["Judge 4"]
+    J2 --> J5["Judge 5"]
+    J4 --> Dec["Decision"]
+    J5 --> Dec
 ```
 
 Judge count is also a weak proxy for value on its own: ten Judges that
@@ -153,10 +148,10 @@ allocate limited attention, not the substrate:
 
 | Principle | What it means here | Built? |
 |---|---|---|
-| **Sparse activation** | Most Judges stay silent on most inputs; which ones fire depends on the input. | No — foundation only runs whatever fixed Judge list it's given. |
+| **Sparse activation** | Most Judges stay silent on most inputs; which ones fire depends on the input. | No — foundation only runs whatever fixed Judge list it is given. |
 | **Excitation** | A strong signal from one Judge makes a related Judge more likely to fire next. | No |
 | **Inhibition** | A strong signal from one Judge can suppress an entire line of reasoning. | No |
-| **Counter-evidence** | Once a decision leans one way, a Judge is deliberately fired to argue against it, so the network doesn't just accumulate agreement. | No |
+| **Counter-evidence** | Once a decision leans one way, a Judge is deliberately fired to argue against it, so the network does not merely accumulate agreement. | No |
 | **Early stopping** | Once confidence is high enough, no further Judges run; low agreement instead triggers *more* evidence-gathering. | No |
 | **Plasticity** | Paths that historically led to correct decisions should be strengthened; paths that led to failures should be weakened. | No |
 
@@ -164,12 +159,12 @@ allocate limited attention, not the substrate:
 
 The first task this project evaluates against is a **High/Low directional
 prediction** problem, output as `HIGH`, `LOW`, or `SKIP`. This is not the
-project's intended end use — it's a deliberately convenient first
+project's intended end use — it is a deliberately convenient first
 benchmark: its output is discrete, ground truth can be generated
 automatically (no human labeling bottleneck), and it supports continuous,
 low-cost evaluation over time. Declining to answer (`SKIP`) is treated as
 a first-class, valuable output, not a failure mode — a system that
-recognizes when it *shouldn't* decide is doing something a purely
+recognizes when it *should not* decide is doing something a purely
 accuracy-maximizing system cannot.
 
 A **semantic router** that would first classify an arbitrary input into a
@@ -233,8 +228,8 @@ roughly an order of magnitude lower cost and latency for 13 batched
 questions versus 13 sequential calls — but that benchmark used a large
 shared document against sequential single-question calls, and this
 project's own states and concurrency profile are smaller, so whether the
-same ratio holds here is exactly the kind of thing Experiment 1 onward
-needs to measure directly, not assume. Judges with no dependency between
+same ratio holds here is precisely what Experiment 1 onward must measure
+directly, not assume. Judges with no dependency between
 them (the same graph stage, once a graph exists) are batched into one
 provider call by this executor.
 
@@ -244,8 +239,8 @@ strictly *before* any Judge's `interpret()` runs, so a bug in one Judge's
 interpretation can never cause an already-incurred cost to go
 unrecorded. The schema has five tables (`experiments`, `inputs`, `calls`,
 `judge_logs`, `decisions`); today only `calls` and `judge_logs` are
-actually written by the executor and writer — `experiments`, `inputs`,
-and `decisions` exist so a future experiment runner doesn't need a
+written by the executor and writer — `experiments`, `inputs`, and
+`decisions` exist so a future experiment runner does not require a
 breaking migration, but nothing in the foundation layer writes them yet,
 so a full experimental run cannot yet be reconstructed end-to-end from
 this database alone.
@@ -297,8 +292,8 @@ will fill in incrementally as the Ablation Test sequence progresses:
   (fetched a Jev response), and used (actually informed the decision)
   Judge counts separately — see "The target reasoning loop" above for
   why those three numbers can differ.
-- Whatever the Jev speculative-fan-out cost/latency ratio actually
-  measures out to on this project's own data (see Architecture above).
+- Whatever cost/latency ratio Jev's speculative fan-out is found to
+  produce on this project's own data (see Architecture above).
 
 This section is a placeholder by design — it exists now so that future
 results land in the README directly rather than in a separate document
@@ -332,11 +327,11 @@ any of them:
 - **Allocating compute/state proportional to local need.** Meta's Byte
   Latent Transformer replaces fixed tokenization with dynamically-sized
   patches determined by local entropy, so compute is spent where
-  complexity actually demands it rather than uniformly. The analogy this
-  project draws is at the level of *philosophy*, not mechanism: a Judge
-  should hold and process only what its narrow question needs, not a
-  large fixed context — the specific technique (entropy-based byte
-  patching) doesn't transfer to Judge design directly.
+  complexity demands it rather than uniformly. The analogy this project
+  draws is at the level of *philosophy*, not mechanism: a Judge should
+  hold and process only what its narrow question requires, not a large
+  fixed context — the specific technique (entropy-based byte patching)
+  does not transfer to Judge design directly.
 
 Sources: [Sakana Fugu](https://sakana.ai/fugu-beta/) ·
 [AB-MCTS](https://sakana.ai/ab-mcts/) ·
