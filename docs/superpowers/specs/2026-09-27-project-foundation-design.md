@@ -328,6 +328,43 @@ raw number Jev returns:
 How a given Judge's `Decision.value` maps to "supports HIGH" / "supports
 LOW" is aggregation-layer semantics and stays out of scope here (§10).
 
+### 3.2 `Question`, `Answer`, and `State` shapes
+
+`Question`/`Answer` need a minimal defined shape now — the Judge/executor
+contract above routes them by value, and "provider-agnostic envelope"
+(§3) is meaningless without one. `State` deliberately does NOT get a
+shape here — it is benchmark/domain data, and its concrete structure
+belongs to the benchmark data pipeline, which §10 already defers as a
+separate spec; foundation scope only requires that a `State` be some
+single value `to_question(state)` receives and renders into a Jev
+request. Treating `State` as `Any`-shaped for now (a `TypeVar`, or a thin
+`State = object` alias) is intentional, not an oversight.
+
+```python
+class Question(BaseModel):
+    kind: Literal["choice", "score", "noul"]
+    prompt: str                     # the question text/schema sent to
+                                       # the provider
+    options: list[str] | None       # required when kind == "choice",
+                                       # None otherwise
+
+
+class Answer(BaseModel):
+    kind: Literal["choice", "score", "noul"]
+    raw_value: str | float | bool   # the provider's answer, before
+                                       # §3.1's normalization
+    raw_probability: float | None   # the provider's own reported
+                                       # probability, pre-normalization
+                                       # (interpret() turns this into
+                                       # Decision.confidence per §3.1)
+```
+
+These are DJN's own envelope types, not a re-implementation of Jev's
+wire format — `JevStageExecutor` is responsible for translating to/from
+the real `typesafe-sdk` request/response types; that translation's
+exact shape is an implementation-time detail against the installed SDK
+version, not something this spec fixes in advance.
+
 ## 4. Dependencies
 
 Core (runtime):
@@ -377,12 +414,26 @@ call/batch tracking — both corrected per review):
   deferred until the whole stage/input finishes. `retry_count` matters
   because the SDK retries 429/529 internally (§4) — one `calls` row
   does not imply exactly one provider HTTP request; it may be `NULL`
-  if the SDK doesn't expose it (§3). `token_usage_json` is required to
-  test the *cost* half of §2's hypothesis; `question_count`/`latency`
-  alone only cover the *latency* half. `status`/`error_message` record
+  if the SDK doesn't expose it (§3). `status`/`error_message` record
   invocations where the provider call itself failed (after retries were
   exhausted) — these still get a row, because the cost/attempt happened
   regardless of outcome.
+
+  **On `token_usage_json` and the cost hypothesis:** this column is a
+  nullable JSON blob, populated from whatever usage/token fields the
+  `typesafe-sdk` response actually exposes (input/output token counts,
+  or an equivalent), the same "record what's really there, never
+  fabricate" rule as `retry_count`. It is *necessary* but not
+  automatically *sufficient* to test §2's cost hypothesis: turning it
+  into a dollar figure additionally requires the pricing model (context
+  doc §2 cites TypeSafe's $0.042/M input tokens, free output, as of
+  2026-09) applied consistently across `calls` rows. If the installed
+  SDK version doesn't expose per-call usage at all, the cost half of
+  §2's hypothesis is **not testable from `calls` alone** — that
+  limitation must be confirmed (or refuted) against the real SDK at
+  implementation time and, if confirmed, recorded as a known gap rather
+  than worked around by estimating tokens from question/answer text
+  length (an estimate is not a measurement).
 - `judge_logs`: written in three phases, because raw provider I/O,
   Judge-specific interpretation, and graph-level usage become known at
   three different times (§3's write-before-interpret ordering depends
