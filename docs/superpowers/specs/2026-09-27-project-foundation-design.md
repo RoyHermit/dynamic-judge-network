@@ -41,49 +41,103 @@ There is no ordering effect and no cross-question conditioning.
 Implication for the design in `docs/context/...`'s §8 ("critical path
 depth dominates latency, not total Judge count"): Judges that belong to
 the same graph stage (no dependency between them) should be batched into
-a single Jev call. Judges whose activation depends on another Judge's
-output (excitation/inhibition, §7.2-7.3) must live in a later, separate
-call, because the batch can't see prior-in-batch answers. Cost and
-latency for a Jev-backed graph are therefore driven by **stage count**
-(sequential API calls), not by the number of Judges.
+a single Jev call. **This is a hypothesis to validate empirically in
+Experiment 1/3** (RQ3), not an assumed fact — TypeSafe's own published
+benchmark (13 questions ~12x cheaper/~10x faster) used a large shared
+document against sequential single-question calls; this project's states
+and concurrency profile are smaller and should be measured directly
+before the claim is relied on.
+
+**Activation dependency is not the same as question-content dependency.**
+A downstream Judge only needs a *separate, later* Jev call if the
+*wording of its question* depends on an upstream answer. If the question
+itself is fixed regardless of whether the Judge ends up "activated,"
+it can be asked speculatively in the same batch as everything else, and
+the excitation/inhibition logic simply decides afterward whether to use
+or discard that answer. Getting this distinction right is graph/runtime
+scope (deferred), but the foundation layer must be able to represent it:
+the storage schema below distinguishes an answer that was *fetched*
+from one that was *used* (see §5), and the Judge/executor contract in
+§3 does not hard-code "dependent implies separate call."
 
 This finding directly shapes the Judge interface below and should be
 carried into the future graph/runtime specs.
 
 ## 3. Judge interface & execution contract
 
-A Judge does not call any API itself. It only declares a typed question
-and interprets the answer. A separate executor is responsible for
-batching same-stage Judges into one Jev call.
+**One contract for every Judge type, regardless of backend.** A Judge
+never calls any API itself — it only declares a typed question and
+interprets the typed answer. Whether that question gets answered via a
+batched Jev call, a solo Jev call, a small-LLM call, or a rule engine is
+entirely an *executor's* concern, not the runtime/graph layer's. This
+keeps the promise in context doc §22 ("Jev is replaceable") literally
+true: the graph/runtime layer only ever talks to `Judge`, never to a
+Jev-specific shape.
 
 ```python
 class Judge(Protocol):
+    judge_id: str  # stable, unique — used as the result key (Judges are
+                    # not assumed hashable/identity-stable across runs)
+
     def to_question(self, state: State) -> Question:
-        """Declare the typed question (Choice/Score/Noul) this Judge
-        wants answered against the given state. No I/O here."""
+        """Declare the typed question this Judge wants answered against
+        the given state. Provider-agnostic: Question is DJN's own value
+        type, not Jev's wire format. No I/O here."""
         ...
 
     def interpret(self, answer: Answer) -> Decision:
-        """Turn Jev's typed answer into this Judge's Decision
-        (direction, confidence, etc). No I/O here."""
+        """Turn a typed Answer into this Judge's Decision. No I/O here."""
+        ...
+
+
+class JudgeExecutor(Protocol):
+    """Fulfils one or more Judges' questions for a graph stage. A
+    concrete executor decides internally how (batched vs individual
+    calls); callers only see judge_id -> Decision."""
+
+    async def run_stage(self, state: State, judges: list[Judge]) -> dict[str, Decision]:
         ...
 
 
 class JevStageExecutor:
-    """Collects `to_question()` output from every Judge scheduled for
-    the current graph stage, sends them as ONE AsyncTypeSafeClient
-    call (one state, many questions), and routes each answer back to
-    the originating Judge's `interpret()`."""
+    """A JudgeExecutor for Jev-backed Judges. Collects `to_question()`
+    from every Judge passed in, sends them as ONE AsyncTypeSafeClient
+    call (one state, many questions), and routes each Answer back to
+    the originating Judge's `interpret()` via `judge_id`."""
 
-    async def run_stage(self, state: State, judges: list[Judge]) -> dict[Judge, Decision]:
+    async def run_stage(self, state: State, judges: list[Judge]) -> dict[str, Decision]:
         ...
 ```
 
-Judge implementations that are not Jev-backed (a future small-LLM or
-rule-engine Judge) are not required to be batchable — they can implement
-a plain `async def evaluate(state) -> Decision` instead. The graph/runtime
-layer (future spec) decides per-stage whether to batch (Jev Judges) or
-call independently (non-batchable Judges).
+A future non-Jev Judge (small LLM, classifier, rule engine) implements
+the exact same `Judge` protocol (`to_question`/`interpret`); it gets its
+own `JudgeExecutor` (e.g. a `SoloLLMExecutor` that calls once per Judge,
+no batching). The graph/runtime layer (future spec) only needs to know
+which executor owns which Judges for a given stage — it never branches
+on Judge type.
+
+### 3.1 `Decision` semantics across answer types
+
+Not every Judge produces "a direction with a confidence." A Trend or
+Volatility Judge's output is not inherently directional; a Jev **Noul**
+answer is itself a calibrated probability, not a separate value-plus-
+confidence pair. `Decision` must therefore stay a small, flexible type
+rather than forcing every Judge into a `(direction, confidence)` shape:
+
+```python
+class Decision(BaseModel):
+    value: str | float | bool     # meaning is Judge-defined: a Choice
+                                    # label, a Score, or a Noul verdict
+    confidence: float              # calibrated probability. For a Noul
+                                    # answer this MAY equal `value`
+                                    # itself — Judges are not required
+                                    # to invent a second number.
+    evidence: str | None = None    # optional short rationale, if the
+                                    # Judge/answer type provides one
+```
+
+How a given Judge's `Decision.value` maps to "supports HIGH" / "supports
+LOW" is aggregation-layer semantics and stays out of scope here (§10).
 
 ## 4. Dependencies
 
@@ -117,16 +171,35 @@ Conditions) center on cross-experiment aggregation and Accuracy/Coverage
 curves, which are far easier to compute with SQL queries/joins than by
 re-parsing JSONL files per analysis.
 
-Two tables, mapping directly onto the required log fields in
-`docs/context/...` §14:
+Four tables, covering every field the research context requires in
+§14 (the first pass of this spec missed several — corrected per review):
 
-- `judge_logs`: `experiment_id, input_id, judge_id, judge_version, judge_output, judge_confidence, judge_latency, activation_source, activation_reason, graph_depth, parent_judge, timestamp`
-- `decisions`: `experiment_id, input_id, aggregator_version, aggregate_score, final_confidence, final_decision, ground_truth, is_correct, total_latency, executed_judge_count, early_stopped, timestamp`
+- `experiments`: `experiment_id (PK), config_json, aggregator_version, created_at`
+  — one immutable row per run's configuration, so `judge_logs`/`decisions`
+  don't need to repeat run-level config on every row.
+- `inputs`: `input_id (PK), task_type, input_features_json, ground_truth, created_at`
+  — one row per benchmark input, referenced by `judge_logs`/`decisions`
+  instead of duplicating features per Judge row.
+- `judge_logs`: `experiment_id, input_id, judge_id, judge_version, judge_prompt_or_definition, judge_output, judge_confidence, judge_latency, activation_source, activation_reason, graph_depth, parent_judge, was_used, timestamp`
+  — `was_used` distinguishes an answer that was *fetched* (possibly
+  speculatively, per §2) from one the graph actually *used* downstream;
+  without it, "executed Judge count" and error-correlation metrics would
+  silently include discarded speculative answers.
+- `decisions`: `experiment_id, input_id, aggregate_score, final_confidence, final_decision, is_correct, total_latency, executed_judge_count, early_stopped, timestamp`
+  — `ground_truth` lives on `inputs` (not duplicated here); `is_correct`
+  is derived and stored for query convenience.
 
 `src/storage/db.py` owns connection handling and schema creation
 (idempotent `CREATE TABLE IF NOT EXISTS`). No ORM — this is a PoC; raw
 SQL via `sqlite3` is simpler to read, measure, and delete later (§22
 "Measure before optimize" / lean-context philosophy).
+
+**Concurrency:** `sqlite3`'s default connection is not safe to share
+across concurrent async tasks. Writes go through a single dedicated
+writer (one connection, opened in WAL mode, all inserts serialized
+through an `asyncio.Lock` or a single writer task consuming a queue) so
+concurrent Judge execution never produces interleaved/partial writes.
+Reads (for analysis) can open their own short-lived read connections.
 
 ## 6. Directory skeleton (this spec's scope)
 
@@ -188,7 +261,8 @@ contain Judge outputs and metadata, never raw credentials.
    research background — README itself stays short.
 3. Architecture overview: Judge = typed question declaration; Jev
    speculative fan-out batches same-stage Judges into one API call;
-   stage count (not Judge count) drives latency/cost.
+   the project's working hypothesis (to be measured, not assumed) is
+   that stage count drives latency/cost more than raw Judge count.
 4. Setup: Python 3.11+, `venv`, `pip install -r requirements.txt`,
    copy the example secrets file to your local one and fill in the
    TypeSafe API key.
