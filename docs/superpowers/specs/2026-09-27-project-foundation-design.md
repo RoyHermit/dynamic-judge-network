@@ -102,7 +102,9 @@ class CallRecord(BaseModel):
     experiment_id: str
     input_id: str
     stage_index: int
-    judge_ids: list[str]           # which Judges' questions this call covered
+    executor: str                   # e.g. "JevStageExecutor" — identifies
+                                      # which executor implementation made
+                                      # this call, for the `calls` table
     question_count: int
     latency: float
     retry_count: int | None       # best-effort: only set if the SDK
@@ -116,6 +118,27 @@ class CallRecord(BaseModel):
     error_message: str | None
 
 
+class RawJudgeRecord(BaseModel):
+    """Everything phase A (§5) needs for ONE Judge's answer within a
+    call — the unit `record_call()` deals in, not a bare `Answer`,
+    because `judge_logs` needs more than the answer itself."""
+
+    judge_id: str
+    judge_version: str
+    judge_prompt_or_definition: str  # identifies the Judge's definition
+                                       # (e.g. source path + version, or
+                                       # a rendered description) so a run
+                                       # is reproducible against the
+                                       # exact Judge logic used
+    question: Question
+    raw_answer: Answer
+    latency: float                    # this Judge's share of the call's
+                                        # latency — equals the call's
+                                        # `latency` for a batched call,
+                                        # independently measured for a
+                                        # non-batching executor
+
+
 class StageResult(BaseModel):
     decisions: dict[str, Decision]
     calls: list[CallRecord]        # never assumed to be exactly one
@@ -127,14 +150,30 @@ class StorageWriter(Protocol):
     tests (§8)."""
 
     async def record_call(
-        self, call: CallRecord, raw_answers: dict[str, Answer]
+        self, call: CallRecord, raw_judge_records: list[RawJudgeRecord]
     ) -> None:
-        """Durably persist one `calls` row plus a raw `judge_logs` row
-        per answer in `raw_answers` (§5's "phase A": call_id, judge_id,
-        question_json, raw_answer_json, judge_latency — NOT the
-        interpreted `Decision`, which does not exist yet at this point).
-        Committed as its own transaction, independent of whatever the
-        caller does with `interpret()` afterward."""
+        """Durably persist one `calls` row plus one phase-A `judge_logs`
+        row per entry in `raw_judge_records` (§5) — NOT the interpreted
+        `Decision`, which does not exist yet at this point. Committed as
+        its own transaction, independent of whatever the caller does
+        with `interpret()` afterward."""
+        ...
+
+    async def record_interpretation(
+        self,
+        call_id: str,
+        judge_id: str,
+        decision: Decision | None,
+        error: str | None,
+    ) -> None:
+        """Phase B (§5): UPDATE the phase-A `judge_logs` row identified
+        by the natural key `(call_id, judge_id)` — never a generated
+        row id the caller was never given — with either `decision`'s
+        `interpreted_value`/`interpreted_confidence`/`evidence`, or
+        `interpret_error` if `interpret()` raised (exactly one of
+        `decision`/`error` is set). `judge_logs` needs a UNIQUE
+        constraint on `(call_id, judge_id)` for this to be well-defined
+        (§5)."""
         ...
 
 
@@ -150,16 +189,19 @@ class JudgeExecutor(Protocol):
     silently letting one result overwrite another is never correct.
 
     Ordering guarantee: for each provider call the executor makes, it
-    calls `writer.record_call(...)` with the raw answer(s) as soon as
-    the provider responds — success or error — BEFORE calling any of
-    those Judges' `interpret()`. This means a bug in `interpret()` (or
-    in whatever the caller does with the returned `Decision`s) can never
-    cause an already-incurred provider call to go unrecorded. If the
-    provider call itself fails (including after the SDK's internal
-    retries are exhausted), the executor still calls
-    `writer.record_call(...)` with `status="error"` and whatever
-    partial telemetry (latency, retry_count if known) is available,
-    and `raw_answers={}`."""
+    calls `writer.record_call(...)` with the raw `RawJudgeRecord`(s) as
+    soon as the provider responds — success or error — BEFORE calling
+    any of those Judges' `interpret()`. Only after `record_call()`
+    returns does the executor call each Judge's `interpret()` and then
+    `writer.record_interpretation(...)` with the result (or the
+    exception message, if `interpret()` raised). This means a bug in
+    `interpret()` can never cause an already-incurred provider call to
+    go unrecorded — at worst its phase-B update is skipped/errored,
+    never phase A. If the provider call itself fails (including after
+    the SDK's internal retries are exhausted), the executor still calls
+    `writer.record_call(...)` with `status="error"`, whatever partial
+    telemetry (latency, retry_count if known) is available, and
+    `raw_judge_records=[]`."""
 
     async def run_stage(
         self,
@@ -313,12 +355,16 @@ call/batch tracking — both corrected per review):
   on this split — collapsing them into one insert would put "already
   happened" and "not yet decided" data in the same atomic write):
   - **Phase A (insert, inside the per-call transaction, before
-    `interpret()` runs):** `id (PK), call_id, experiment_id, input_id, judge_id, judge_version, judge_prompt_or_definition, question_json, raw_answer_json, judge_latency, timestamp`.
-    `call_id` ties the row to the `calls` row it was fetched in;
-    `question_json`/`raw_answer_json` record the actual generated
-    question and the provider's unprocessed answer (wording and answer
-    shape can vary run to run). This row exists — durably — the moment
-    the provider responds, regardless of what happens next.
+    `interpret()` runs):** `id (PK), call_id, experiment_id, input_id, judge_id, judge_version, judge_prompt_or_definition, question_json, raw_answer_json, judge_latency, timestamp`,
+    with a **`UNIQUE(call_id, judge_id)`** constraint. `call_id` ties
+    the row to the `calls` row it was fetched in; `question_json`/
+    `raw_answer_json` record the actual generated question and the
+    provider's unprocessed answer (wording and answer shape can vary
+    run to run). This row exists — durably — the moment the provider
+    responds, regardless of what happens next. The `UNIQUE` constraint
+    is what lets phase B (`record_interpretation`, §3) target this row
+    by the natural key `(call_id, judge_id)` instead of needing the
+    generated `id` handed back to the caller.
   - **Phase B (update, immediately after a successful `interpret()`):**
     `interpreted_value, interpreted_confidence, evidence, interpret_error`.
     `interpret_error` is set (and the value/confidence columns stay
@@ -392,6 +438,8 @@ tests/
   test_judges/
     test_interface.py
     test_jev_executor.py  # fake client + fake StorageWriter (see §8)
+  test_storage/
+    test_writer.py         # real tempfile-backed sqlite3 (see §8)
 configs/                # experiment/threshold config files (empty for now)
 ```
 
@@ -426,24 +474,33 @@ contain Judge outputs and metadata, never raw credentials.
   (per the `mock-test-data` skill).
 - Judge `to_question`/`interpret` are pure functions and get plain
   synchronous unit tests.
-- Explicit storage/executor test cases (§3, §5), all against a fake
-  `StorageWriter` and a fake `AsyncTypeSafeClient` — never the real SDK:
-  - A `decisions` row with zero associated `judge_logs` rows must
-    report `executed_judge_count == 0` (guards `COUNT(judge_logs.id)`
-    vs `COUNT(*)`).
+- **Executor tests** use a fake `StorageWriter` (in-memory, records call
+  order) and a fake `AsyncTypeSafeClient` — never the real SDK or a real
+  database. These prove call *ordering* (record_call before interpret,
+  record_interpretation after) cheaply and deterministically:
   - A provider call that fails after the SDK's retries are exhausted
-    must still produce a `calls` row with `status="error"`.
+    must still produce a `record_call(...)` invocation with
+    `status="error"`.
   - **The decisive case:** a provider call that *succeeds*, followed by
-    a Judge's `interpret()` raising. `writer.record_call()` must have
-    already been called (phase-A `judge_logs` row persisted, per-call
-    transaction committed) before `interpret()` ever runs, so this row
-    survives the exception — asserted by checking the fake writer was
-    called prior to the induced failure, not just that data exists
-    afterward.
-  - `retry_count` stays `None` when the fake client's response doesn't
-    expose one — the executor must not invent a value.
+    a Judge's `interpret()` raising. `record_call()` must have already
+    been called before `interpret()` ever runs — asserted by checking
+    the fake writer's call order, not just that data exists afterward.
+    `record_interpretation(...)` is then called with `error` set.
   - A non-batching executor (fake) driving 3 Judges individually
     returns `StageResult.calls` with 3 entries, not 1.
+- **Storage integration tests** use a real `sqlite3.connect(temp_path)`
+  (a `tempfile`-backed on-disk database, discarded after the test) and
+  the real `src/storage/writer.py`/`db.py` — a fake writer can prove
+  call *ordering* but not that a transaction actually committed or that
+  a SQL query is correct:
+  - `record_call()` followed by `record_interpretation()` against a
+    real connection, then read back via plain SQL to confirm the phase
+    A/B split lands in the right columns.
+  - The `COUNT(judge_logs.id)` vs `COUNT(*)` zero-log case (§5) is
+    asserted against a real `LEFT JOIN` query, not just described in
+    prose — this is exactly the kind of off-by-one a fake can't catch.
+  - `retry_count` stays `None` end-to-end when the fake client's
+    response doesn't expose one — the executor must not invent a value.
 
 ## 9. README plan (English)
 
