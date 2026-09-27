@@ -93,7 +93,10 @@ class Judge(Protocol):
 class JudgeExecutor(Protocol):
     """Fulfils one or more Judges' questions for a graph stage. A
     concrete executor decides internally how (batched vs individual
-    calls); callers only see judge_id -> Decision."""
+    calls); callers only see judge_id -> Decision.
+
+    Raises ValueError if `judges` contains a duplicate `judge_id` —
+    silently letting one result overwrite another is never correct."""
 
     async def run_stage(self, state: State, judges: list[Judge]) -> dict[str, Decision]:
         ...
@@ -128,13 +131,30 @@ rather than forcing every Judge into a `(direction, confidence)` shape:
 class Decision(BaseModel):
     value: str | float | bool     # meaning is Judge-defined: a Choice
                                     # label, a Score, or a Noul verdict
-    confidence: float              # calibrated probability. For a Noul
-                                    # answer this MAY equal `value`
-                                    # itself — Judges are not required
-                                    # to invent a second number.
+    confidence: float | None       # probability OF `value` specifically
+                                    # (never a raw model probability of
+                                    # some other fixed proposition) —
+                                    # see the per-answer-type rule below
     evidence: str | None = None    # optional short rationale, if the
                                     # Judge/answer type provides one
 ```
+
+`confidence` must always mean "how likely is `value` itself," which
+requires a normalization step per answer type — it is not always the
+raw number Jev returns:
+
+- **Choice**: Jev already returns a probability per option. `value` =
+  the chosen label, `confidence` = that label's own probability. No
+  normalization needed.
+- **Noul** (a yes/no support judgment for one fixed proposition): Jev
+  returns `P(proposition is true)`. If that probability is `p`, the
+  Judge's `interpret()` must set `value = (p >= 0.5)` and
+  `confidence = p if value else 1 - p` — i.e. confidence in the
+  *reported verdict*, not the raw `p`. A raw `p = 0.1` becomes
+  `value = False, confidence = 0.9`, not `confidence = 0.1`.
+- **Score**: a numeric score is not itself a probability. `confidence`
+  is `None` unless the Judge has an actual, separately-calibrated
+  uncertainty estimate to report — never synthesized from the score.
 
 How a given Judge's `Decision.value` maps to "supports HIGH" / "supports
 LOW" is aggregation-layer semantics and stays out of scope here (§10).
@@ -171,8 +191,9 @@ Conditions) center on cross-experiment aggregation and Accuracy/Coverage
 curves, which are far easier to compute with SQL queries/joins than by
 re-parsing JSONL files per analysis.
 
-Four tables, covering every field the research context requires in
-§14 (the first pass of this spec missed several — corrected per review):
+Five tables, covering every field the research context requires in §14
+(the first pass of this spec missed several, and the second pass missed
+call/batch tracking — both corrected per review):
 
 - `experiments`: `experiment_id (PK), config_json, aggregator_version, created_at`
   — one immutable row per run's configuration, so `judge_logs`/`decisions`
@@ -180,26 +201,45 @@ Four tables, covering every field the research context requires in
 - `inputs`: `input_id (PK), task_type, input_features_json, ground_truth, created_at`
   — one row per benchmark input, referenced by `judge_logs`/`decisions`
   instead of duplicating features per Judge row.
-- `judge_logs`: `experiment_id, input_id, judge_id, judge_version, judge_prompt_or_definition, judge_output, judge_confidence, judge_latency, activation_source, activation_reason, graph_depth, parent_judge, was_used, timestamp`
-  — `was_used` distinguishes an answer that was *fetched* (possibly
-  speculatively, per §2) from one the graph actually *used* downstream;
-  without it, "executed Judge count" and error-correlation metrics would
-  silently include discarded speculative answers.
-- `decisions`: `experiment_id, input_id, aggregate_score, final_confidence, final_decision, is_correct, total_latency, executed_judge_count, early_stopped, timestamp`
+- `calls`: `call_id (PK), experiment_id, input_id, stage_index, executor, question_count, latency, timestamp`
+  — one row per actual executor invocation (one Jev batch call, or one
+  solo call for a non-batching executor). This is what lets §2's
+  "stage count drives cost, not Judge count" hypothesis actually be
+  measured: `question_count` vs `latency` across `calls` rows shows
+  whether batching paid off, independent of how many Judges existed.
+- `judge_logs`: `id (PK), call_id, experiment_id, input_id, judge_id, judge_version, judge_prompt_or_definition, question_json, judge_output, judge_confidence, judge_latency, activation_source, activation_reason, graph_depth, parent_judge, was_used, timestamp`
+  — every row here represents a Judge answer that was actually fetched
+  (i.e. cost money/time), whether or not it was later used; `call_id`
+  ties it to the batch it was fetched in, and `question_json` records
+  the actual generated question (wording can vary run to run). `was_used`
+  is a separate, purely semantic flag: did the graph act on this answer.
+  `executed_judge_count` on `decisions` (below) MUST be defined as
+  "count of `judge_logs` rows for this decision," not "count where
+  `was_used`" — the former is the true execution/cost count, the latter
+  is a graph-behavior metric (`used_judge_count`, computed the same way
+  filtered on `was_used`, not a stored column).
+- `decisions`: `experiment_id (PK, with input_id), input_id, aggregate_score, final_confidence, final_decision, is_correct, total_latency, early_stopped, timestamp`
   — `ground_truth` lives on `inputs` (not duplicated here); `is_correct`
-  is derived and stored for query convenience.
+  is derived and stored for query convenience; `executed_judge_count`
+  and `used_judge_count` are computed from `judge_logs` at query time
+  (a `COUNT(*)` / `COUNT(*) FILTER(WHERE was_used)` join), not stored
+  redundantly.
 
 `src/storage/db.py` owns connection handling and schema creation
 (idempotent `CREATE TABLE IF NOT EXISTS`). No ORM — this is a PoC; raw
 SQL via `sqlite3` is simpler to read, measure, and delete later (§22
 "Measure before optimize" / lean-context philosophy).
 
-**Concurrency:** `sqlite3`'s default connection is not safe to share
-across concurrent async tasks. Writes go through a single dedicated
-writer (one connection, opened in WAL mode, all inserts serialized
-through an `asyncio.Lock` or a single writer task consuming a queue) so
-concurrent Judge execution never produces interleaved/partial writes.
-Reads (for analysis) can open their own short-lived read connections.
+**Concurrency and atomicity:** `sqlite3`'s default connection is not
+safe to share across concurrent async tasks. Writes go through a single
+dedicated writer (one connection, opened in WAL mode, all writes
+serialized through an `asyncio.Lock` or a single writer task consuming
+a queue). All rows produced while processing one input — its `calls`
+rows, every `judge_logs` row from those calls, and the final `decisions`
+row — are written inside **one SQL transaction per input**, so a crash
+mid-processing leaves either a complete record for that input or none,
+never a partial one. Reads (for analysis) can open their own
+short-lived read connections.
 
 ## 6. Directory skeleton (this spec's scope)
 
