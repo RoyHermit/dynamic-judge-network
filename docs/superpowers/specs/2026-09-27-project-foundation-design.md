@@ -90,15 +90,50 @@ class Judge(Protocol):
         ...
 
 
+class CallRecord(BaseModel):
+    """Telemetry for one executor invocation — maps directly onto the
+    `calls` table (§5). Populated by the executor, not invented later,
+    so storage never has to guess what happened inside the call."""
+
+    question_count: int
+    latency: float
+    retry_count: int | None       # best-effort: only set if the SDK
+                                    # response actually exposes it; a
+                                    # foundation-scope executor must
+                                    # leave this None rather than
+                                    # fabricate a number the SDK didn't
+                                    # report (see note below).
+    token_usage: dict | None
+    status: Literal["success", "error"]
+    error_message: str | None
+
+
+class StageResult(BaseModel):
+    decisions: dict[str, Decision]
+    call: CallRecord
+
+
 class JudgeExecutor(Protocol):
     """Fulfils one or more Judges' questions for a graph stage. A
     concrete executor decides internally how (batched vs individual
-    calls); callers only see judge_id -> Decision.
+    calls); callers see judge_id -> Decision PLUS the call's own
+    telemetry (`StageResult`), because the runtime/storage layer needs
+    the latter to write an accurate `calls` row (§5) — it cannot be
+    reconstructed after the fact from decisions alone.
 
     Raises ValueError if `judges` contains a duplicate `judge_id` —
-    silently letting one result overwrite another is never correct."""
+    silently letting one result overwrite another is never correct.
 
-    async def run_stage(self, state: State, judges: list[Judge]) -> dict[str, Decision]:
+    The executor is responsible for persisting its own `CallRecord` +
+    raw judge answers as soon as the provider response is in hand,
+    BEFORE calling any Judge's `interpret()` — so a bug in `interpret()`
+    (or in downstream code) can never cause an already-incurred provider
+    call to go unrecorded. If the provider call itself fails (including
+    after the SDK's internal retries are exhausted), the executor still
+    persists a `CallRecord` with `status="error"` and whatever partial
+    telemetry (latency, retry_count if known) is available."""
+
+    async def run_stage(self, state: State, judges: list[Judge]) -> StageResult:
         ...
 
 
@@ -108,16 +143,25 @@ class JevStageExecutor:
     call (one state, many questions), and routes each Answer back to
     the originating Judge's `interpret()` via `judge_id`."""
 
-    async def run_stage(self, state: State, judges: list[Judge]) -> dict[str, Decision]:
+    async def run_stage(self, state: State, judges: list[Judge]) -> StageResult:
         ...
 ```
+
+**On `retry_count`:** the TypeSafe SDK documents retry *configuration*
+(how many retries to attempt), not a confirmed per-response retry
+*count*. Foundation-scope code must not synthesize this number if the
+installed SDK version doesn't actually expose it on the response —
+`retry_count = None` is the honest value in that case. Confirming
+whether/how the SDK surfaces this is an implementation-time check
+against the real `typesafe-sdk` package, not something this spec can
+settle by reading marketing docs.
 
 A future non-Jev Judge (small LLM, classifier, rule engine) implements
 the exact same `Judge` protocol (`to_question`/`interpret`); it gets its
 own `JudgeExecutor` (e.g. a `SoloLLMExecutor` that calls once per Judge,
-no batching). The graph/runtime layer (future spec) only needs to know
-which executor owns which Judges for a given stage — it never branches
-on Judge type.
+no batching), returning the same `StageResult` shape. The graph/runtime
+layer (future spec) only needs to know which executor owns which Judges
+for a given stage — it never branches on Judge type.
 
 ### 3.1 `Decision` semantics across answer types
 
@@ -201,15 +245,19 @@ call/batch tracking — both corrected per review):
 - `inputs`: `input_id (PK), task_type, input_features_json, ground_truth, created_at`
   — one row per benchmark input, referenced by `judge_logs`/`decisions`
   instead of duplicating features per Judge row.
-- `calls`: `call_id (PK), experiment_id, input_id, stage_index, executor, question_count, latency, retry_count, token_usage_json, timestamp`
+- `calls`: `call_id (PK), experiment_id, input_id, stage_index, executor, question_count, latency, retry_count, token_usage_json, status, error_message, timestamp`
   — one row per actual executor invocation (one Jev batch call, or one
-  solo call for a non-batching executor). `retry_count` matters because
-  the SDK retries 429/529 internally (§4) — one `calls` row does not
-  imply exactly one provider HTTP request, and `retry_count` is what
-  lets true request volume be reconstructed. `token_usage_json` (or
-  whatever cost unit the provider bills in) is required to test the
-  *cost* half of §2's hypothesis; `question_count`/`latency` alone only
-  cover the *latency* half.
+  solo call for a non-batching executor), written from `CallRecord`
+  (§3) as soon as the provider responds — success or error — never
+  deferred until the whole stage/input finishes. `retry_count` matters
+  because the SDK retries 429/529 internally (§4) — one `calls` row
+  does not imply exactly one provider HTTP request; it may be `NULL`
+  if the SDK doesn't expose it (§3). `token_usage_json` is required to
+  test the *cost* half of §2's hypothesis; `question_count`/`latency`
+  alone only cover the *latency* half. `status`/`error_message` record
+  invocations where the provider call itself failed (after retries were
+  exhausted) — these still get a row, because the cost/attempt happened
+  regardless of outcome.
 - `judge_logs`: `id (PK), call_id, experiment_id, input_id, judge_id, judge_version, judge_prompt_or_definition, question_json, judge_output, judge_confidence, judge_latency, activation_source, activation_reason, graph_depth, parent_judge, was_used, timestamp`
   — every row here represents a Judge answer that was actually fetched
   (i.e. cost money/time), whether or not it was later used; `call_id`
@@ -243,17 +291,21 @@ serialized through an `asyncio.Lock` or a single writer task consuming
 a queue). Reads (for analysis) can open their own short-lived read
 connections.
 
-Transaction boundaries are per *call*, not per *input*: a `calls` row
-plus its resulting `judge_logs` rows are committed durably immediately
-after that executor invocation returns — that cost/latency has already
-been incurred regardless of what happens afterward, so it must survive
-even if a later stage of the same input crashes. The final `decisions`
-row is written in its own, separate transaction once the input's whole
-pipeline completes. An input that crashes mid-processing therefore has
-a durable, accurate `calls`/`judge_logs` trail but no `decisions` row —
-which correctly reflects reality (money/time were spent, no final
-decision was produced) — rather than one all-or-nothing transaction
-that would silently discard already-incurred cost on any later failure.
+Transaction boundaries are per *call*, not per *input*: the executor
+writes its `calls` row plus the raw `judge_logs` rows **as soon as the
+provider responds** — before any Judge's `interpret()` runs (§3) — so a
+bug in `interpret()`, or any later graph-level failure, cannot lose the
+record of a cost that was already incurred. This applies symmetrically
+to success and failure: a provider call that ultimately errors out
+(after the SDK's internal retries) still gets a `calls` row with
+`status="error"` (§5), written at the point of failure, not skipped.
+The final `decisions` row is written in its own, separate transaction
+once the input's whole pipeline completes. An input that crashes
+mid-processing therefore has a durable, accurate `calls`/`judge_logs`
+trail (successes and failures alike) but no `decisions` row — which
+correctly reflects reality (money/time were spent, no final decision
+was produced) — rather than one all-or-nothing transaction that would
+silently discard already-incurred cost on any later failure.
 
 ## 6. Directory skeleton (this spec's scope)
 
@@ -306,6 +358,11 @@ contain Judge outputs and metadata, never raw credentials.
   (per the `mock-test-data` skill).
 - Judge `to_question`/`interpret` are pure functions and get plain
   synchronous unit tests.
+- Explicit storage/executor test cases (§5): a `decisions` row with
+  zero associated `judge_logs` rows must report `executed_judge_count
+  == 0` (guards the `COUNT(judge_logs.id)` vs `COUNT(*)` distinction);
+  a stubbed executor that raises after "using up" its retries must
+  still result in a persisted `calls` row with `status="error"`.
 
 ## 9. README plan (English)
 
