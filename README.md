@@ -1,5 +1,9 @@
 # Dynamic Judge Network
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Interactive%20Showcase-2ea44f)](https://royhermit.github.io/dynamic-judge-network/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blueviolet.svg)](https://www.python.org/)
+
 **Dynamic Judge Network (DJN)** is a research architecture for a
 question this project treats as still open: can a decision be reached by
 activating only the small subset of specialized evaluators a given
@@ -11,6 +15,23 @@ Research framing: **Bio-inspired Dynamic Sparse Multi-Judge Reasoning.**
 Everything below states clearly what is a *hypothesis to be tested* versus
 what is *already implemented and measured* — see "Status" and "Results"
 at the end for the current, honest line between the two.
+
+## Interactive showcase
+
+[**Launch the interactive showcase**](https://royhermit.github.io/dynamic-judge-network/)
+([`index.html`](index.html), in Japanese) is a self-contained browser
+demo of the *intuition* behind dynamic routing: a confidence score is
+compared against an adaptive threshold θ to decide between an early exit
+and a deeper path, and the simulator lets you vary ambiguity, urgency,
+and an energy constraint to see the route change. It also compares that
+idea against a static dense model and a standard MoE.
+
+It is an explanatory illustration, not this project's implementation or
+a result: it frames routing as a single network exiting early at a
+confidence threshold, whereas the architecture below routes across
+separate Judges and is not built on PyTorch. The pseudo-code shown in the
+demo is illustrative only, and nothing in it has been measured on this
+project's data (see "Status" and "Results").
 
 ## The problem
 
