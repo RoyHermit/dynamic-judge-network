@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja" class="scroll-smooth">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic Judge Network: バイオ着想型 動的判定AI教材</title>
+  <title>Dynamic Judge Network: A Bio-Inspired Dynamic Judging AI Primer</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter & JetBrains Mono -->
@@ -89,11 +89,11 @@
         </div>
       </div>
       <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
-        <a href="#overview" class="hover:text-brand-400 transition-colors">概要</a>
-        <a href="#simulator" class="hover:text-brand-400 transition-colors">動的推論シミュレーター</a>
-        <a href="#architecture" class="hover:text-brand-400 transition-colors">アーキテクチャ</a>
-        <a href="#math-model" class="hover:text-brand-400 transition-colors">数理モデル</a>
-        <a href="#code-viewer" class="hover:text-brand-400 transition-colors">実装仕様</a>
+        <a href="#overview" class="hover:text-brand-400 transition-colors">Overview</a>
+        <a href="#simulator" class="hover:text-brand-400 transition-colors">Dynamic Inference Simulator</a>
+        <a href="#architecture" class="hover:text-brand-400 transition-colors">Architecture</a>
+        <a href="#math-model" class="hover:text-brand-400 transition-colors">Math Model</a>
+        <a href="#code-viewer" class="hover:text-brand-400 transition-colors">Implementation</a>
       </nav>
       <div class="flex items-center space-x-3">
         <a href="https://github.com/RoyHermit/dynamic-judge-network" target="_blank" rel="noopener noreferrer" 
@@ -114,7 +114,7 @@
       <div class="text-center max-w-3xl mx-auto">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold mb-6">
           <span class="w-2 h-2 rounded-full bg-brand-400 animate-ping"></span>
-          次世代AI意思決定フレームワークの探求
+          Exploring a Next-Generation AI Decision-Making Framework
         </div>
         <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-6">
           Bio-Inspired <br>
@@ -123,16 +123,16 @@
           </span>
         </h1>
         <p class="text-base sm:text-lg text-slate-300 leading-relaxed mb-8">
-          脳の二重過程理論（反射と深考）と大脳基底核のゲート機構に着想を得た意思決定ネットワーク。
-          入力難易度や緊急度に応じて「判定回路（Judge）」が推論経路をミリ秒単位で動的調停し、
-          <strong class="text-brand-400 font-semibold">高速性 (Fast)</strong>、<strong class="text-judge-cyan font-semibold">計算スパース性 (Sparse)</strong>、<strong class="text-judge-purple font-semibold">高環境適応性 (Adaptive)</strong> を同時に両立します。
+          A decision-making network inspired by the brain's dual-process theory (reflex and deliberation) and the gating mechanism of the basal ganglia.
+          Depending on input difficulty and urgency, a “judge circuit (Judge)” dynamically arbitrates the inference path at millisecond timescales, delivering
+          <strong class="text-brand-400 font-semibold">Speed (Fast)</strong>, <strong class="text-judge-cyan font-semibold">Compute Sparsity (Sparse)</strong>, and <strong class="text-judge-purple font-semibold">Environmental Adaptability (Adaptive)</strong> simultaneously.
         </p>
         <div class="flex flex-wrap items-center justify-center gap-4">
           <a href="#simulator" class="px-6 py-3 rounded-xl bg-gradient-to-r from-brand-500 to-emerald-600 text-slate-950 font-bold hover:brightness-110 shadow-lg shadow-brand-500/25 transition">
-            インタラクティブ・シミュレーターを試す
+            Try the Interactive Simulator
           </a>
           <a href="#architecture" class="px-6 py-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 font-medium transition">
-            アーキテクチャ原理を学ぶ
+            Learn the Architectural Principles
           </a>
         </div>
       </div>
@@ -144,8 +144,8 @@
     <!-- SECTION 1: OVERVIEW & 3 PILLARS -->
     <section id="overview" class="scroll-mt-20">
       <div class="mb-10 text-center">
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">なぜ「Dynamic Judge（動的判定）」が必要なのか？</h2>
-        <p class="mt-2 text-slate-400 text-sm sm:text-base">従来の深層学習が抱える構造的課題と、生物学的知見によるブレイクスルー</p>
+        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Why Do We Need a “Dynamic Judge”?</h2>
+        <p class="mt-2 text-slate-400 text-sm sm:text-base">Structural limitations of conventional deep learning, and a breakthrough drawn from biology</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
@@ -153,20 +153,20 @@
         <div class="bg-slate-900/80 border border-rose-500/30 rounded-2xl p-6 relative overflow-hidden">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">✕</div>
-            <h3 class="text-lg font-bold text-slate-100">従来の固定ネットワーク（Static Dense Models）</h3>
+            <h3 class="text-lg font-bold text-slate-100">Conventional Fixed Networks (Static Dense Models)</h3>
           </div>
           <ul class="space-y-3 text-sm text-slate-300">
             <li class="flex items-start gap-2">
               <span class="text-rose-400 mt-1">•</span>
-              <span><strong>一律の計算コスト:</strong> 「1+1」のような平易な入力でも、極めて複雑な難問でも、全く同一の全パラメータ（100% FLOPs）を消費して計算する。</span>
+              <span><strong>Uniform compute cost:</strong> Whether the input is as trivial as “1+1” or an extremely hard problem, every parameter is used (100% FLOPs).</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-rose-400 mt-1">•</span>
-              <span><strong>固定遅延:</strong> リアルタイムな即時判断（エッジ、自律走行、緊急回避）が求められる状況でも推論遅延を状況に応じて縮小できない。</span>
+              <span><strong>Fixed latency:</strong> Even where real-time decisions are required (edge devices, autonomous driving, emergency avoidance), inference latency cannot be shortened to fit the situation.</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-rose-400 mt-1">•</span>
-              <span><strong>確信度盲目:</strong> 自身が迷っているのか確信があるのかを判断せず、常に固定深度まで無駄に計算を走らせてしまう。</span>
+              <span><strong>Confidence-blind:</strong> The model does not assess whether it is uncertain or confident, and always runs wastefully to a fixed depth.</span>
             </li>
           </ul>
         </div>
@@ -175,20 +175,20 @@
         <div class="bg-slate-900/80 border border-brand-500/30 rounded-2xl p-6 relative overflow-hidden">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold">✓</div>
-            <h3 class="text-lg font-bold text-slate-100">Dynamic Judge Network（動的判定ネットワーク）</h3>
+            <h3 class="text-lg font-bold text-slate-100">Dynamic Judge Network</h3>
           </div>
           <ul class="space-y-3 text-sm text-slate-300">
             <li class="flex items-start gap-2">
               <span class="text-brand-400 mt-1">•</span>
-              <span><strong>生物模倣型ゲート調停:</strong> 大脳基底核のように「初期感覚層」の直後に軽量な判定回路（Judge）を配置。容易な入力はFast Path（早期退出）で即答。</span>
+              <span><strong>Bio-inspired gated arbitration:</strong> Like the basal ganglia, a lightweight judge circuit (Judge) sits right after the “initial sensory layer.” Easy inputs are answered immediately via the Fast Path (early exit).</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-brand-400 mt-1">•</span>
-              <span><strong>動的スパース性 (Dynamic Sparsity):</strong> 難解・曖昧な入力に対してのみ、追加の深層エキスパート層や再帰的思考モジュール（Deep Path）を選択的に励起。</span>
+              <span><strong>Dynamic Sparsity:</strong> Additional deep expert layers and recursive reasoning modules (Deep Path) are selectively activated only for hard or ambiguous inputs.</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-brand-400 mt-1">•</span>
-              <span><strong>環境制約適応:</strong> 残りバッテリーや締め切り時間（Latency Budget）、入力ノイズ度合いに応じて判定閾値 $\theta$ をリアルタイムに自動調整。</span>
+              <span><strong>Adaptation to environmental constraints:</strong> The decision threshold $\theta$ is adjusted automatically in real time according to remaining battery, deadline (latency budget), and input noise level.</span>
             </li>
           </ul>
         </div>
@@ -200,9 +200,9 @@
           <div class="w-12 h-12 rounded-xl bg-brand-500/10 text-brand-400 flex items-center justify-center mb-4">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">1. Fast (高速性・超低遅延)</h4>
+          <h4 class="text-lg font-bold text-white mb-2">1. Fast (Speed, Ultra-Low Latency)</h4>
           <p class="text-slate-400 text-sm leading-relaxed">
-            入力の約60〜80%を占める標準的なデータは、初期の軽量層で判定が確定（High Confidence）。平均推論時間を最大70%削減し、緊急ブレーキ等の即応タスクを可能にします。
+            Standard data, which makes up roughly 60–80% of inputs, is resolved in the early lightweight layers (High Confidence). Average inference time is cut by up to 70%, enabling immediate-response tasks such as emergency braking.
           </p>
         </div>
 
@@ -210,9 +210,9 @@
           <div class="w-12 h-12 rounded-xl bg-judge-cyan/10 text-judge-cyan flex items-center justify-center mb-4">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm4 4h8m-8 4h5"/></svg>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">2. Sparse (動的スパース性)</h4>
+          <h4 class="text-lg font-bold text-white mb-2">2. Sparse (Dynamic Sparsity)</h4>
           <p class="text-slate-400 text-sm leading-relaxed">
-            必要なニューロン/モジュールのみをオンデマンドで点火。重みを固定的に枝刈りする静的スパースと異なり、入力ごとに活性化トポロジーを動的に変化させて省電力化を実現します。
+            Only the neurons/modules that are needed are fired on demand. Unlike static sparsity, which prunes weights permanently, the activation topology changes dynamically per input to save power.
           </p>
         </div>
 
@@ -220,9 +220,9 @@
           <div class="w-12 h-12 rounded-xl bg-judge-purple/10 text-judge-purple flex items-center justify-center mb-4">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
           </div>
-          <h4 class="text-lg font-bold text-white mb-2">3. Adaptive (動的適応性)</h4>
+          <h4 class="text-lg font-bold text-white mb-2">3. Adaptive (Dynamic Adaptability)</h4>
           <p class="text-slate-400 text-sm leading-relaxed">
-            入力の不確実性（Uncertainty）と外部コスト（消費電力・許容時間制限）のトレードオフを「Judge」がリアルタイムに自己最適化。極限環境でも破綻しないロバスト性を獲得します。
+            The Judge self-optimizes in real time the trade-off between input uncertainty and external costs (power consumption, time limits), gaining robustness that does not break down even in extreme environments.
           </p>
         </div>
       </div>
@@ -234,9 +234,9 @@
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-judge-cyan/10 border border-judge-cyan/30 text-judge-cyan text-xs font-semibold mb-2">
           Interactive Lab
         </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">動的推論パイプライン・シミュレーター</h2>
+        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Dynamic Inference Pipeline Simulator</h2>
         <p class="text-slate-400 text-sm sm:text-base">
-          入力データの複雑さや外部制約パラメータを変更し、「Judge（判定回路）」がどのように推論経路と計算リソースを切り替えるかリアルタイムに体験してください。
+          Change the input complexity and external constraint parameters to see in real time how the “Judge (decision circuit)” switches the inference path and compute resources.
         </p>
       </div>
 
@@ -245,54 +245,54 @@
         <div class="lg:col-span-5 space-y-6">
           <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80">
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-4 flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-brand-400"></span> 入力環境パラメータ設定
+              <span class="w-2 h-2 rounded-full bg-brand-400"></span> Input Environment Parameters
             </h3>
 
             <!-- Slider 1: Task Ambiguity / Difficulty -->
             <div class="space-y-2 mb-5">
               <div class="flex justify-between text-xs">
-                <span class="text-slate-300 font-medium">入力の曖昧度 / 難易度 ($D$)</span>
-                <span id="ambiguity-val" class="text-brand-400 font-mono font-bold">25% (平易)</span>
+                <span class="text-slate-300 font-medium">Input ambiguity / difficulty ($D$)</span>
+                <span id="ambiguity-val" class="text-brand-400 font-mono font-bold">25% (Easy)</span>
               </div>
               <input id="slider-ambiguity" type="range" min="0" max="100" value="25" 
                      class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-500">
-              <p class="text-[11px] text-slate-500">低い＝明瞭なパターン（即答可） / 高い＝ノイズ・難解なエッジケース</p>
+              <p class="text-[11px] text-slate-500">Low = clear pattern (answerable instantly) / High = noisy, hard edge case</p>
             </div>
 
             <!-- Slider 2: Latency Urgency -->
             <div class="space-y-2 mb-5">
               <div class="flex justify-between text-xs">
-                <span class="text-slate-300 font-medium">緊急度・時間制約 ($U$)</span>
-                <span id="urgency-val" class="text-judge-amber font-mono font-bold">30% (通常)</span>
+                <span class="text-slate-300 font-medium">Urgency / time constraint ($U$)</span>
+                <span id="urgency-val" class="text-judge-amber font-mono font-bold">30% (Normal)</span>
               </div>
               <input id="slider-urgency" type="range" min="0" max="100" value="30" 
                      class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
-              <p class="text-[11px] text-slate-500">高い＝ミリ秒単位の即応が必須（Fast Path優先へバイアス）</p>
+              <p class="text-[11px] text-slate-500">High = millisecond-level response required (biased toward the Fast Path)</p>
             </div>
 
             <!-- Slider 3: Energy / Resource Cost Sensitivity -->
             <div class="space-y-2 mb-6">
               <div class="flex justify-between text-xs">
-                <span class="text-slate-300 font-medium">省電力優先度 ($E$)</span>
-                <span id="energy-val" class="text-judge-purple font-mono font-bold">50% (バランス)</span>
+                <span class="text-slate-300 font-medium">Power-saving priority ($E$)</span>
+                <span id="energy-val" class="text-judge-purple font-mono font-bold">50% (Balanced)</span>
               </div>
               <input id="slider-energy" type="range" min="0" max="100" value="50" 
                      class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500">
-              <p class="text-[11px] text-slate-500">高い＝余分な深層モジュールの点火を厳格に抑制</p>
+              <p class="text-[11px] text-slate-500">High = strictly suppress firing of extra deep modules</p>
             </div>
 
             <!-- Presets -->
             <div>
-              <span class="text-xs text-slate-400 block mb-2 font-medium">代表的シナリオのプリセット:</span>
+              <span class="text-xs text-slate-400 block mb-2 font-medium">Scenario presets:</span>
               <div class="grid grid-cols-3 gap-2">
                 <button type="button" onclick="setPreset('routine')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
-                  日常の定型判定
+                  Routine decision
                 </button>
                 <button type="button" onclick="setPreset('emergency')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
-                  自律走行の緊急時
+                  Autonomous-driving emergency
                 </button>
                 <button type="button" onclick="setPreset('complex')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
-                  高精度医療診断
+                  High-precision medical diagnosis
                 </button>
               </div>
             </div>
@@ -301,16 +301,16 @@
           <!-- Dynamic Status HUD -->
           <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-4">
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-              <span>Judge（判定器）の内部メトリクス</span>
+              <span>Judge Internal Metrics</span>
               <span id="decision-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30">
-                FAST PATH (即時判定)
+                FAST PATH (Instant decision)
               </span>
             </h3>
 
             <div class="space-y-3 font-mono text-xs">
               <div>
                 <div class="flex justify-between text-slate-400 mb-1">
-                  <span>確信度 (Confidence Score $C$)</span>
+                  <span>Confidence Score ($C$)</span>
                   <span id="metric-conf" class="text-white font-bold">0.88</span>
                 </div>
                 <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
@@ -320,7 +320,7 @@
 
               <div>
                 <div class="flex justify-between text-slate-400 mb-1">
-                  <span>動的閾値 (Threshold $\theta$)</span>
+                  <span>Dynamic Threshold ($\theta$)</span>
                   <span id="metric-thresh" class="text-judge-amber font-bold">0.65</span>
                 </div>
                 <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
@@ -332,15 +332,15 @@
             <!-- Savings Stats -->
             <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-center">
               <div class="p-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span class="text-[10px] text-slate-400 block">推定計算量 (FLOPs)</span>
+                <span class="text-[10px] text-slate-400 block">Est. Compute (FLOPs)</span>
                 <span id="stat-flops" class="text-sm font-bold text-brand-400 font-mono">1.2 G</span>
               </div>
               <div class="p-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span class="text-[10px] text-slate-400 block">推論遅延</span>
+                <span class="text-[10px] text-slate-400 block">Inference Latency</span>
                 <span id="stat-latency" class="text-sm font-bold text-judge-cyan font-mono">4.1 ms</span>
               </div>
               <div class="p-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span class="text-[10px] text-slate-400 block">エネルギー削減率</span>
+                <span class="text-[10px] text-slate-400 block">Energy Savings</span>
                 <span id="stat-savings" class="text-sm font-bold text-judge-purple font-mono">76 %</span>
               </div>
             </div>
@@ -352,9 +352,9 @@
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
               <span class="inline-block w-2.5 h-2.5 rounded-full bg-judge-cyan animate-pulse"></span>
-              ニューラルルーティング・アクティベーション
+              Neural Routing Activation
             </h3>
-            <span class="text-xs text-slate-400">リアルタイム・トポロジー描画</span>
+            <span class="text-xs text-slate-400">Real-time topology view</span>
           </div>
 
           <div class="relative w-full aspect-[16/10] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-inner">
@@ -375,10 +375,10 @@
           </div>
 
           <div class="mt-4 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs text-slate-400 leading-relaxed">
-            <strong class="text-slate-200">挙動解説:</strong> 
+            <strong class="text-slate-200">Behavior:</strong> 
             <span id="explanation-text">
-              確信度 $C$ (0.88) が動的閾値 $\theta$ (0.65) を上回っているため、Stage 1の直後に「判定成立」と判断。
-              Stage 2の重厚な深層ニューロン群はスリープ状態を維持し、約76%の電力を即座にセーブしました。
+              Because the confidence $C$ (0.88) exceeds the dynamic threshold $\theta$ (0.65), the decision is finalized right after Stage 1.
+              The heavy deep-neuron groups of Stage 2 stay asleep, immediately saving about 76% of the power.
             </span>
           </div>
         </div>
@@ -391,18 +391,18 @@
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-judge-purple/10 border border-judge-purple/30 text-judge-purple text-xs font-semibold mb-2">
           Structural Design
         </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">アーキテクチャ詳細比較</h2>
-        <p class="mt-2 text-slate-400 text-sm sm:text-base">従来型AIモデル、MoE (Mixture of Experts)、そして Dynamic Judge Network の差異</p>
+        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Architecture Comparison</h2>
+        <p class="mt-2 text-slate-400 text-sm sm:text-base">How conventional AI models, MoE (Mixture of Experts), and the Dynamic Judge Network differ</p>
       </div>
 
       <!-- Tab Buttons for Architecture Switch -->
       <div class="flex justify-center mb-8">
         <div class="inline-flex p-1 bg-slate-900 rounded-xl border border-slate-800">
           <button type="button" onclick="switchArchTab('static')" id="tab-btn-static" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition text-slate-400 hover:text-white">
-            ① 従来型高密度モデル (Static Dense)
+            ① Static Dense Model
           </button>
           <button type="button" onclick="switchArchTab('moe')" id="tab-btn-moe" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition text-slate-400 hover:text-white">
-            ② 一般的MoE (Static-Depth Sparse)
+            ② Typical MoE (Static-Depth Sparse)
           </button>
           <button type="button" onclick="switchArchTab('djn')" id="tab-btn-djn" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition bg-brand-500 text-slate-950 shadow-md">
             ③ Dynamic Judge Network (Bio-inspired)
@@ -422,8 +422,8 @@
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold mb-2">
           Mathematical Formulation
         </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Judgeの意思決定数理モデル</h2>
-        <p class="mt-2 text-slate-400 text-sm sm:text-base">判定境界を左右する確信度推定と動的コスト関数の定式化</p>
+        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Mathematical Model of Judge Decisions</h2>
+        <p class="mt-2 text-slate-400 text-sm sm:text-base">Formulation of the confidence estimate and dynamic cost function that shape the decision boundary</p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -432,42 +432,42 @@
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <h3 class="text-base font-bold text-white mb-2 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-brand-400"></span>
-              1. 予測確信度の定量化 ($C$)
+              1. Quantifying Prediction Confidence ($C$)
             </h3>
             <p class="text-xs text-slate-300 leading-relaxed mb-3">
-              初期特徴量 $h^{(1)}$ を受け取ったJudgeは、出力確率分布 $P = \text{Softmax}(W_j h^{(1)})$ からエントロピーまたは上位2クラスのマージンによって確信度を算出します：
+              Given the initial features $h^{(1)}$, the Judge computes confidence from the output probability distribution $P = \text{Softmax}(W_j h^{(1)})$ using either entropy or the margin between the top two classes:
             </p>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-brand-300">
-              C(x) = p_{(1)} - p_{(2)} \quad \text{または} \quad C(x) = 1 - \frac{H(P)}{\log K}
+              C(x) = p_{(1)} - p_{(2)} \quad \text{or} \quad C(x) = 1 - \frac{H(P)}{\log K}
             </div>
             <p class="text-[11px] text-slate-500 mt-2">
-              ※ $p_{(1)}, p_{(2)}$ は確率が最も高い2クラスの値。$H(P)$ はシャノン情報エントロピー。
+              Note: $p_{(1)}, p_{(2)}$ are the probabilities of the two highest-probability classes. $H(P)$ is the Shannon entropy.
             </p>
           </div>
 
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <h3 class="text-base font-bold text-white mb-2 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-judge-amber"></span>
-              2. 環境連動型の動的閾値 ($\theta_{dynamic}$)
+              2. Environment-Linked Dynamic Threshold ($\theta_{dynamic}$)
             </h3>
             <p class="text-xs text-slate-300 leading-relaxed mb-3">
-              閾値 $\theta$ は固定値ではなく、外部からの緊急度 $U \in [0, 1]$ および計算資源コスト感度 $E \in [0, 1]$ に応じて適応的にスライドします：
+              The threshold $\theta$ is not fixed; it slides adaptively according to the external urgency $U \in [0, 1]$ and the compute-cost sensitivity $E \in [0, 1]$:
             </p>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-amber-300">
               \theta(t) = \text{clip}\Big( \theta_0 - \alpha \cdot U(t) - \beta \cdot E(t), \; \theta_{min}, \; \theta_{max} \Big)
             </div>
             <p class="text-[11px] text-slate-400 mt-2">
-              緊急時（$U \uparrow$）や節電時（$E \uparrow$）は閾値が下がり、わずかな確信度でも即時回答（Fast Path）を採択します。
+              Under urgency ($U \uparrow$) or power saving ($E \uparrow$), the threshold drops and even modest confidence is accepted for an immediate answer (Fast Path).
             </p>
           </div>
 
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <h3 class="text-base font-bold text-white mb-2 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-judge-purple"></span>
-              3. 統合損失関数 (Joint Objective)
+              3. Joint Objective (Combined Loss Function)
             </h3>
             <p class="text-xs text-slate-300 leading-relaxed mb-3">
-              タスク精度損失 $\mathcal{L}_{task}$ に、無駄な計算に対するペナルティ $\mathcal{L}_{cost}$ を加算してエンドツーエンドで学習します：
+              Training is end-to-end: a penalty $\mathcal{L}_{cost}$ for wasted computation is added to the task-accuracy loss $\mathcal{L}_{task}$:
             </p>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-purple-300">
               \mathcal{L} = \mathcal{L}_{task}(y, \hat{y}) + \lambda_1 \cdot \mathbb{I}(\text{Deep}) \cdot \text{FLOPs}_{deep} + \lambda_2 \cdot \mathcal{L}_{judge}
@@ -479,8 +479,8 @@
         <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-bold text-white">意思決定スペース（Phase Space）</h3>
-              <span class="text-xs text-slate-400 font-mono">横軸: 難易度 / 縦軸: 確信度</span>
+              <h3 class="text-sm font-bold text-white">Decision Space (Phase Space)</h3>
+              <span class="text-xs text-slate-400 font-mono">X: difficulty / Y: confidence</span>
             </div>
             <div class="relative w-full aspect-square max-h-[380px] bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
               <canvas id="boundary-canvas" class="w-full h-full block"></canvas>
@@ -488,8 +488,8 @@
           </div>
 
           <div class="mt-4 p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
-            <span class="text-white font-semibold block mb-1">グラフの見方:</span>
-            緑のゾーン（$C \ge \theta$）に入ったサンプルは直ちに<strong>Fast Path</strong>で早期終了します。境界線（黄）は現在のスライダー設定に応じてリアルタイムに上下します。
+            <span class="text-white font-semibold block mb-1">How to read the graph:</span>
+            Samples that land in the green zone ($C \ge \theta$) exit early immediately via the <strong>Fast Path</strong>. The boundary line (yellow) moves up and down in real time with the current slider settings.
           </div>
         </div>
       </div>
@@ -501,8 +501,8 @@
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold mb-2">
           Implementation Specs
         </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">実装リファレンス (PyTorchライク擬似コード)</h2>
-        <p class="mt-2 text-slate-400 text-sm sm:text-base">`dynamic-judge-network` の中核モジュール構造と推論フォワードパスの実装例</p>
+        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Implementation Reference (PyTorch-like Pseudocode)</h2>
+        <p class="mt-2 text-slate-400 text-sm sm:text-base">Core module structure and an example inference forward pass of `dynamic-judge-network`</p>
       </div>
 
       <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
@@ -515,7 +515,7 @@
             <span class="ml-2 font-mono text-xs text-slate-400">dynamic_judge_network.py</span>
           </div>
           <button type="button" onclick="copyCode()" id="copy-btn" class="text-xs px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono transition">
-            コードをコピー
+            Copy code
           </button>
         </div>
 
@@ -527,8 +527,8 @@
 
 <span class="text-blue-400">class</span> <span class="text-yellow-300">DynamicJudgeBlock</span>(nn.Module):
     <span class="text-slate-500">"""
-    入力特徴量から確信度(Confidence)を推定し、
-    早期終了(Fast Exit)か深層計算(Deep Path)かを動的に調停する判定ゲート。
+    Estimates confidence from the input features and
+    dynamically arbitrates between an early exit (Fast Exit) and deep computation (Deep Path).
     """</span>
     <span class="text-blue-400">def</span> <span class="text-green-400">__init__</span>(self, feat_dim, num_classes, base_threshold=0.75):
         <span class="text-blue-400">super</span>().__init__()
@@ -542,7 +542,7 @@
         self.base_threshold = base_threshold
 
     <span class="text-blue-400">def</span> <span class="text-green-400">compute_adaptive_threshold</span>(self, urgency=0.0, energy_bias=0.0):
-        <span class="text-slate-500"># 生体における緊急時反応を模倣: 緊急時は判定基準を緩和</span>
+        <span class="text-slate-500"># Mimics biological emergency response: relax the criterion under urgency</span>
         theta = self.base_threshold - (0.35 * urgency) - (0.25 * energy_bias)
         <span class="text-purple-400">return</span> torch.clamp(torch.tensor(theta), min=0.20, max=0.95)
 
@@ -559,16 +559,16 @@
 <span class="text-blue-400">class</span> <span class="text-yellow-300">DynamicJudgeNetwork</span>(nn.Module):
     <span class="text-blue-400">def</span> <span class="text-green-400">__init__</span>(self, in_features, hidden_dim, num_classes):
         <span class="text-blue-400">super</span>().__init__()
-        <span class="text-slate-500"># Stage 1: 軽量感覚特徴抽出 (Fast Sensory)</span>
+        <span class="text-slate-500"># Stage 1: Lightweight sensory feature extraction (Fast Sensory)</span>
         self.stage1 = nn.Sequential(
             nn.Linear(in_features, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.GELU()
         )
-        <span class="text-slate-500"># Judge Unit: 動的判定ユニット</span>
+        <span class="text-slate-500"># Judge Unit: dynamic decision unit</span>
         self.judge = DynamicJudgeBlock(hidden_dim, num_classes)
         
-        <span class="text-slate-500"># Stage 2: 深層思考モジュール (Deep Experts / Deliberative Network)</span>
+        <span class="text-slate-500"># Stage 2: Deep reasoning module (Deep Experts / Deliberative Network)</span>
         self.stage2 = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim * 4),
             nn.GELU(),
@@ -578,20 +578,20 @@
         )
 
     <span class="text-blue-400">def</span> <span class="text-green-400">forward</span>(self, x, urgency=0.0, energy_bias=0.0):
-        <span class="text-slate-500"># 1. 共通の初期特徴量を抽出</span>
+        <span class="text-slate-500"># 1. Extract shared initial features</span>
         h1 = self.stage1(x)
         
-        <span class="text-slate-500"># 2. Judge による動的ルーティング判定</span>
+        <span class="text-slate-500"># 2. Dynamic routing decision by the Judge</span>
         logits_fast, confidence, should_fast_exit = self.judge(h1, urgency, energy_bias)
         
-        <span class="text-slate-500"># 3. Fast Exit 条件を満たせばStage2は完全スルー（0 FLOPs）</span>
+        <span class="text-slate-500"># 3. If the Fast Exit condition is met, skip Stage 2 entirely (0 FLOPs)</span>
         <span class="text-purple-400">if</span> should_fast_exit.all():
             <span class="text-purple-400">return</span> logits_fast, {"path": "fast_only", "savings": 0.78}
         
-        <span class="text-slate-500"># 難関サンプルのみ Stage 2 を活性化</span>
+        <span class="text-slate-500"># Activate Stage 2 only for hard samples</span>
         logits_deep = self.stage2(h1)
         
-        <span class="text-slate-500"># 最終出力の統合 (確信度加重またはスイッチ)</span>
+        <span class="text-slate-500"># Merge final outputs (confidence-weighted or switched)</span>
         final_output = torch.where(should_fast_exit.unsqueeze(-1), logits_fast, logits_deep)
         <span class="text-purple-400">return</span> final_output, {"path": "hybrid_or_deep", "savings": 0.15}
 </code></pre>
@@ -605,13 +605,14 @@
     <div class="max-w-7xl mx-auto px-4 space-y-2">
       <p>Researching bio-inspired dynamic judge networks for fast, sparse, and adaptive AI decision-making.</p>
       <p>Based on concept repository: <a href="https://github.com/RoyHermit/dynamic-judge-network" target="_blank" class="text-brand-400 hover:underline">RoyHermit/dynamic-judge-network</a></p>
+      <p>Illustrative simulation only: the figures shown (FLOPs, latency, savings) are not measured results of this project.</p>
     </div>
   </footer>
 
   <!-- Toast Notification Container for Copied Text -->
   <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-emerald-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs shadow-2xl flex items-center gap-2 pointer-events-none">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-    <span>コードをクリップボードにコピーしました！</span>
+    <span>Code copied to clipboard!</span>
   </div>
 
   <script>
@@ -629,39 +630,39 @@
     // Architecture Comparison Data
     const archData = {
       static: {
-        title: "① 従来型高密度モデル (Static Dense Architecture)",
-        badge: "固定計算・高負荷",
+        title: "① Static Dense Architecture",
+        badge: "Fixed compute, high load",
         badgeColor: "border-rose-500/30 text-rose-400 bg-rose-500/10",
-        desc: "どのような簡単な入力に対しても、ネットワークの全レイヤー・全ニューロン（100% FLOPs）を通過します。推論遅延は常に一定で最大となり、省電力化や緊急回避への柔軟な対応が不可能です。",
+        desc: "Every input, however simple, passes through all layers and all neurons of the network (100% FLOPs). Inference latency is always constant at its maximum, leaving no flexibility for power saving or emergency response.",
         features: [
-          "計算深度: 固定 (Layer 1 → Layer N 完全通過)",
-          "FLOPs削減率: 0% (常に全量消費)",
-          "推論遅延: 高固定 (例: 18.5 ms)",
-          "生体模倣性: 低 (無条件の反射と深考の区別なし)"
+          "Compute depth: Fixed (full pass from Layer 1 to Layer N)",
+          "FLOPs reduction: 0% (always full consumption)",
+          "Inference latency: High and fixed (e.g., 18.5 ms)",
+          "Biological plausibility: Low (no distinction between reflex and deliberation)"
         ]
       },
       moe: {
-        title: "② 一般的スパースMoE (Static-Depth Mixture of Experts)",
-        badge: "幅スパース・深度固定",
+        title: "② Typical Sparse MoE (Static-Depth Mixture of Experts)",
+        badge: "Width-sparse, fixed depth",
         badgeColor: "border-judge-cyan/30 text-judge-cyan bg-judge-cyan/10",
-        desc: "ルーターによって特定の専門家（Expert）層のみを選択的に活性化させますが、モデルの深さ（全層）は基本的に最後まで通過します。幅方向のスパース化には優れますが、「簡単なタスクを第1層で即座に終わらせる」ような深度方向の柔軟なEarly Exitは主目的ではありません。",
+        desc: "A router selectively activates only certain expert layers, but the model's depth (all layers) is generally traversed to the end. It excels at width-wise sparsity, but flexible depth-wise early exit, such as “finishing an easy task at the first layer,” is not its main purpose.",
         features: [
-          "計算深度: 固定深層 (各ブロック内のTop-K Expertのみ選択)",
-          "FLOPs削減率: 約30〜50%",
-          "推論遅延: 中程度 (ルーティングオーバーヘッドあり)",
-          "生体模倣性: 中 (機能局在性はあるが全段通過)"
+          "Compute depth: Fixed deep (only Top-K experts selected within each block)",
+          "FLOPs reduction: about 30–50%",
+          "Inference latency: Moderate (routing overhead)",
+          "Biological plausibility: Medium (functional localization, but passes through every stage)"
         ]
       },
       djn: {
         title: "③ Dynamic Judge Network (Bio-inspired Gating & Adaptive Depth)",
-        badge: "深度×幅の動的調停・超省電力",
+        badge: "Dynamic depth × width arbitration, ultra-low power",
         badgeColor: "border-brand-500/30 text-brand-400 bg-brand-500/10",
-        desc: "初期の感覚層直後に軽量な「Judge」が鎮座。大脳基底核や前頭葉の注意機構のように、入力の曖昧度と外部緊急度を瞬時に測定。平易な入力はStage 1のみで直ちに解答（Fast Path）し、重厚なStage 2を完全休眠させます。",
+        desc: "A lightweight “Judge” sits right after the initial sensory layer. Like the attention mechanisms of the basal ganglia and frontal lobe, it instantly measures input ambiguity and external urgency. Easy inputs are answered right away by Stage 1 alone (Fast Path), leaving the heavy Stage 2 fully dormant.",
         features: [
-          "計算深度: 動的可変 (1層〜深層まで状況適応)",
-          "FLOPs削減率: 最大 70〜85%",
-          "推論遅延: 超高速〜高精度まで動的スケール (例: 3.2ms 〜 16.0ms)",
-          "生体模倣性: 極めて高 (System 1/System 2 二重過程理論の実装)"
+          "Compute depth: Dynamic (adapts from a single layer to full depth)",
+          "FLOPs reduction: up to 70–85%",
+          "Inference latency: Scales dynamically from ultra-fast to high-precision (e.g., 3.2 ms – 16.0 ms)",
+          "Biological plausibility: Very high (implements System 1/System 2 dual-process theory)"
         ]
       }
     };
@@ -680,19 +681,19 @@
       // Bind Sliders
       sliderAmbiguity.addEventListener('input', (e) => {
         ambiguity = parseInt(e.target.value);
-        document.getElementById('ambiguity-val').innerText = `${ambiguity}% (${ambiguity < 40 ? '平易' : ambiguity < 70 ? '中難度' : '難解・ノイズ'})`;
+        document.getElementById('ambiguity-val').innerText = `${ambiguity}% (${ambiguity < 40 ? 'Easy' : ambiguity < 70 ? 'Moderate' : 'Hard / noisy'})`;
         updateSimulation();
       });
 
       sliderUrgency.addEventListener('input', (e) => {
         urgency = parseInt(e.target.value);
-        document.getElementById('urgency-val').innerText = `${urgency}% (${urgency < 35 ? '通常' : urgency < 70 ? '高め' : '緊急'})`;
+        document.getElementById('urgency-val').innerText = `${urgency}% (${urgency < 35 ? 'Normal' : urgency < 70 ? 'Elevated' : 'Urgent'})`;
         updateSimulation();
       });
 
       sliderEnergy.addEventListener('input', (e) => {
         energy = parseInt(e.target.value);
-        document.getElementById('energy-val').innerText = `${energy}% (${energy < 35 ? '精度優先' : energy < 70 ? 'バランス' : '極限節電'})`;
+        document.getElementById('energy-val').innerText = `${energy}% (${energy < 35 ? 'Accuracy-first' : energy < 70 ? 'Balanced' : 'Max saving'})`;
         updateSimulation();
       });
 
@@ -747,27 +748,27 @@
 
       if (isFastPath) {
         badge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30";
-        badge.innerText = "FAST PATH (即時早期退出)";
+        badge.innerText = "FAST PATH (Instant early exit)";
         statFlops.innerText = "1.1 G";
         statFlops.className = "text-sm font-bold text-brand-400 font-mono";
         statLatency.innerText = `${(3.2 + (ambiguity * 0.02)).toFixed(1)} ms`;
         statSavings.innerText = `${Math.min(88, Math.max(65, 80 - ambiguity * 0.15)).toFixed(0)} %`;
 
         explText.innerHTML = `
-          確信度 $C$ (<strong class="text-brand-400">${confidence.toFixed(2)}</strong>) が動的閾値 $\\theta$ (<strong class="text-amber-400">${thresh.toFixed(2)}</strong>) を上回っています。<br>
-          Stage 1 の判定器が「十分な確信あり」と判断したため、<strong>Stage 2 (Deep Experts) を起動せずに直ちに推論を完了</strong>しました。大幅な省電力化と超低遅延を達成しています。
+          Confidence $C$ (<strong class="text-brand-400">${confidence.toFixed(2)}</strong>) exceeds the dynamic threshold $\\theta$ (<strong class="text-amber-400">${thresh.toFixed(2)}</strong>).<br>
+          Because the Stage 1 judge decided it was “sufficiently confident,” inference <strong>completed immediately without activating Stage 2 (Deep Experts)</strong>, achieving major power savings and ultra-low latency.
         `;
       } else {
         badge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30";
-        badge.innerText = "DEEP PATH (深層思考活性化)";
+        badge.innerText = "DEEP PATH (Deep reasoning activated)";
         statFlops.innerText = "4.8 G";
         statFlops.className = "text-sm font-bold text-purple-400 font-mono";
         statLatency.innerText = `${(14.5 + (ambiguity * 0.05)).toFixed(1)} ms`;
         statSavings.innerText = "12 %";
 
         explText.innerHTML = `
-          入力難易度が高く、確信度 $C$ (<strong class="text-rose-400">${confidence.toFixed(2)}</strong>) が動的閾値 $\\theta$ (<strong class="text-amber-400">${thresh.toFixed(2)}</strong>) に届きませんでした。<br>
-          Judge は誤診や誤作動を防ぐために <strong>Stage 2 (Deep Experts) を点火</strong>し、追加の計算リソースを動員して高精度な熟考推論を実行しています。
+          The input is difficult, and the confidence $C$ (<strong class="text-rose-400">${confidence.toFixed(2)}</strong>) did not reach the dynamic threshold $\\theta$ (<strong class="text-amber-400">${thresh.toFixed(2)}</strong>).<br>
+          To prevent misjudgments and malfunctions, the Judge <strong>fires Stage 2 (Deep Experts)</strong> and mobilizes additional compute for high-precision deliberate reasoning.
         `;
       }
 
@@ -935,13 +936,13 @@
       bCtx.font = `${9 * window.devicePixelRatio}px Inter, sans-serif`;
       bCtx.textAlign = 'right';
       bCtx.fillText('1.0', padding - 8, padding + 10);
-      bCtx.fillText('確信度 C', padding - 8, padding + ph * 0.5);
+      bCtx.fillText('Confidence C', padding - 8, padding + ph * 0.5);
       bCtx.fillText('0.0', padding - 8, h - padding);
 
       bCtx.textAlign = 'center';
-      bCtx.fillText('平易', padding + 10, h - padding + 18);
-      bCtx.fillText('入力難易度 / ノイズ D', padding + pw * 0.5, h - padding + 22);
-      bCtx.fillText('難解', w - padding, h - padding + 18);
+      bCtx.fillText('Easy', padding + 10, h - padding + 18);
+      bCtx.fillText('Input difficulty / noise D', padding + pw * 0.5, h - padding + 22);
+      bCtx.fillText('Hard', w - padding, h - padding + 18);
 
       // Current Dynamic Threshold line
       const thresh = Math.max(0.20, Math.min(0.95, 0.75 - (urgency / 100) * 0.35 - (energy / 100) * 0.25));
@@ -968,16 +969,16 @@
       bCtx.fillStyle = '#f59e0b';
       bCtx.font = `bold ${9 * window.devicePixelRatio}px Inter, sans-serif`;
       bCtx.textAlign = 'left';
-      bCtx.fillText(`動的閾値 θ = ${thresh.toFixed(2)}`, padding + 10, threshY - 8);
+      bCtx.fillText(`Dynamic threshold θ = ${thresh.toFixed(2)}`, padding + 10, threshY - 8);
 
       // Region texts
       bCtx.fillStyle = 'rgba(52, 211, 153, 0.6)';
       bCtx.font = `bold ${11 * window.devicePixelRatio}px Inter, sans-serif`;
       bCtx.textAlign = 'center';
-      bCtx.fillText('FAST PATH 採択領域 (早期終了)', padding + pw * 0.5, padding + (threshY - padding) * 0.5);
+      bCtx.fillText('FAST PATH region (early exit)', padding + pw * 0.5, padding + (threshY - padding) * 0.5);
 
       bCtx.fillStyle = 'rgba(168, 85, 247, 0.6)';
-      bCtx.fillText('DEEP PATH 採択領域 (追加計算)', padding + pw * 0.5, threshY + ((h - padding) - threshY) * 0.5);
+      bCtx.fillText('DEEP PATH region (extra compute)', padding + pw * 0.5, threshY + ((h - padding) - threshY) * 0.5);
 
       // Plot Current Sample Position
       const normAmbiguity = ambiguity / 100;
@@ -999,7 +1000,7 @@
 
       bCtx.fillStyle = '#ffffff';
       bCtx.font = `bold ${9 * window.devicePixelRatio}px Inter, sans-serif`;
-      bCtx.fillText('現在サンプル', sampleX, sampleY - 14);
+      bCtx.fillText('Current sample', sampleX, sampleY - 14);
     }
 
     function switchArchTab(type) {
@@ -1038,7 +1039,7 @@
             ${data.desc}
           </p>
           <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800/80">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">主要特性プロファイル:</h4>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Key characteristics:</h4>
             <ul class="grid grid-cols-1 md:grid-cols-2 gap-3">
               ${featuresHtml}
             </ul>

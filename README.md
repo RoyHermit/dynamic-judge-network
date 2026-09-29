@@ -19,7 +19,7 @@ at the end for the current, honest line between the two.
 ## Interactive showcase
 
 [**Launch the interactive showcase**](https://royhermit.github.io/dynamic-judge-network/)
-([`index.html`](index.html), in Japanese) is a self-contained browser
+([`index.html`](index.html)) is a self-contained browser
 demo of the *intuition* behind dynamic routing: a confidence score is
 compared against an adaptive threshold θ to decide between an early exit
 and a deeper path, and the simulator lets you vary ambiguity, urgency,
