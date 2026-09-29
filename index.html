@@ -1,1080 +1,292 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic Judge Network: A Bio-Inspired Dynamic Judging AI Primer</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts: Inter & JetBrains Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
-          colors: {
-            brand: {
-              50: '#ecfdf5',
-              100: '#d1fae5',
-              400: '#34d399',
-              500: '#10b981',
-              600: '#059669',
-              700: '#047857',
-              900: '#064e3b',
-            },
-            judge: {
-              purple: '#8b5cf6',
-              cyan: '#06b6d4',
-              amber: '#f59e0b',
-              rose: '#f43f5e',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0f172a;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #475569;
-    }
-
-    /* Pulse wave effect for active neurons */
-    @keyframes pulse-ring {
-      0% { transform: scale(0.95); opacity: 0.8; }
-      50% { transform: scale(1.15); opacity: 0.3; }
-      100% { transform: scale(0.95); opacity: 0.8; }
-    }
-    .animate-pulse-ring {
-      animation: pulse-ring 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="An interactive research explainer for Dynamic Judge Network: deterministic gates, Activation Waves, Evidence State, counter-evidence, and HIGH/LOW/SKIP decisions.">
+  <title>Dynamic Judge Network — Follow the evidence</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script type="module" src="assets/app.mjs"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-brand-500 selection:text-slate-950">
-
-  <!-- Header / Navigation Bar -->
-  <header class="sticky top-0 z-50 backdrop-blur-md bg-slate-950/80 border-b border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-judge-cyan flex items-center justify-center shadow-lg shadow-brand-500/20">
-          <svg class="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
-        <div>
-          <span class="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-brand-400">
-            Dynamic Judge Network
-          </span>
-          <span class="hidden sm:inline-block ml-2 text-xs px-2 py-0.5 rounded-full bg-slate-800 text-brand-400 border border-brand-500/30">
-            Bio-Inspired AI
-          </span>
-        </div>
-      </div>
-      <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
-        <a href="#overview" class="hover:text-brand-400 transition-colors">Overview</a>
-        <a href="#simulator" class="hover:text-brand-400 transition-colors">Dynamic Inference Simulator</a>
-        <a href="#architecture" class="hover:text-brand-400 transition-colors">Architecture</a>
-        <a href="#math-model" class="hover:text-brand-400 transition-colors">Math Model</a>
-        <a href="#code-viewer" class="hover:text-brand-400 transition-colors">Implementation</a>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="#top" aria-label="Dynamic Judge Network, back to top">
+        <span class="brand-mark" aria-hidden="true">DJN<span class="brand-dot">.</span></span>
+        <span class="brand-name">Dynamic Judge Network</span>
+      </a>
+      <nav class="header-nav" aria-label="Main navigation">
+        <a href="#simulator">Simulator</a>
+        <a href="#how-it-works">The idea</a>
+        <a href="#research">Research status</a>
       </nav>
-      <div class="flex items-center space-x-3">
-        <a href="https://github.com/RoyHermit/dynamic-judge-network" target="_blank" rel="noopener noreferrer" 
-           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-          </svg>
-          <span>GitHub</span>
-        </a>
-      </div>
+      <a class="header-repo" href="https://github.com/RoyHermit/dynamic-judge-network" target="_blank" rel="noopener noreferrer">
+        View repository <span aria-hidden="true">↗</span>
+      </a>
     </div>
   </header>
 
-  <!-- Hero Section -->
-  <section class="relative overflow-hidden pt-12 pb-16 md:pt-20 md:pb-24 border-b border-slate-800">
-    <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(16,185,129,0.18),rgba(255,255,255,0))] pointer-events-none"></div>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-      <div class="text-center max-w-3xl mx-auto">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold mb-6">
-          <span class="w-2 h-2 rounded-full bg-brand-400 animate-ping"></span>
-          Exploring a Next-Generation AI Decision-Making Framework
-        </div>
-        <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-6">
-          Bio-Inspired <br>
-          <span class="bg-clip-text text-transparent bg-gradient-to-r from-brand-400 via-teal-300 to-judge-cyan">
-            Dynamic Judge Networks
-          </span>
-        </h1>
-        <p class="text-base sm:text-lg text-slate-300 leading-relaxed mb-8">
-          A decision-making network inspired by the brain's dual-process theory (reflex and deliberation) and the gating mechanism of the basal ganglia.
-          Depending on input difficulty and urgency, a “judge circuit (Judge)” dynamically arbitrates the inference path at millisecond timescales, delivering
-          <strong class="text-brand-400 font-semibold">Speed (Fast)</strong>, <strong class="text-judge-cyan font-semibold">Compute Sparsity (Sparse)</strong>, and <strong class="text-judge-purple font-semibold">Environmental Adaptability (Adaptive)</strong> simultaneously.
+  <main id="main">
+    <section class="hero shell" id="top" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-pulse" aria-hidden="true"></span> A research architecture · Interactive explainer</div>
+        <h1 id="hero-title">Follow the evidence.<br><em>Then decide what thinks next.</em></h1>
+        <p class="hero-lead">
+          Dynamic Judge Network asks whether small, diverse evaluators can form a sparse reasoning path:
+          each wave of evidence helps choose the next Judges, or tells the system to stop.
         </p>
-        <div class="flex flex-wrap items-center justify-center gap-4">
-          <a href="#simulator" class="px-6 py-3 rounded-xl bg-gradient-to-r from-brand-500 to-emerald-600 text-slate-950 font-bold hover:brightness-110 shadow-lg shadow-brand-500/25 transition">
-            Try the Interactive Simulator
-          </a>
-          <a href="#architecture" class="px-6 py-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 font-medium transition">
-            Learn the Architectural Principles
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-24">
-
-    <!-- SECTION 1: OVERVIEW & 3 PILLARS -->
-    <section id="overview" class="scroll-mt-20">
-      <div class="mb-10 text-center">
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Why Do We Need a “Dynamic Judge”?</h2>
-        <p class="mt-2 text-slate-400 text-sm sm:text-base">Structural limitations of conventional deep learning, and a breakthrough drawn from biology</p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-        <!-- Conventional Deep Learning Problem -->
-        <div class="bg-slate-900/80 border border-rose-500/30 rounded-2xl p-6 relative overflow-hidden">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">✕</div>
-            <h3 class="text-lg font-bold text-slate-100">Conventional Fixed Networks (Static Dense Models)</h3>
-          </div>
-          <ul class="space-y-3 text-sm text-slate-300">
-            <li class="flex items-start gap-2">
-              <span class="text-rose-400 mt-1">•</span>
-              <span><strong>Uniform compute cost:</strong> Whether the input is as trivial as “1+1” or an extremely hard problem, every parameter is used (100% FLOPs).</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-rose-400 mt-1">•</span>
-              <span><strong>Fixed latency:</strong> Even where real-time decisions are required (edge devices, autonomous driving, emergency avoidance), inference latency cannot be shortened to fit the situation.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-rose-400 mt-1">•</span>
-              <span><strong>Confidence-blind:</strong> The model does not assess whether it is uncertain or confident, and always runs wastefully to a fixed depth.</span>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Dynamic Judge Network Solution -->
-        <div class="bg-slate-900/80 border border-brand-500/30 rounded-2xl p-6 relative overflow-hidden">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold">✓</div>
-            <h3 class="text-lg font-bold text-slate-100">Dynamic Judge Network</h3>
-          </div>
-          <ul class="space-y-3 text-sm text-slate-300">
-            <li class="flex items-start gap-2">
-              <span class="text-brand-400 mt-1">•</span>
-              <span><strong>Bio-inspired gated arbitration:</strong> Like the basal ganglia, a lightweight judge circuit (Judge) sits right after the “initial sensory layer.” Easy inputs are answered immediately via the Fast Path (early exit).</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-brand-400 mt-1">•</span>
-              <span><strong>Dynamic Sparsity:</strong> Additional deep expert layers and recursive reasoning modules (Deep Path) are selectively activated only for hard or ambiguous inputs.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-brand-400 mt-1">•</span>
-              <span><strong>Adaptation to environmental constraints:</strong> The decision threshold $\theta$ is adjusted automatically in real time according to remaining battery, deadline (latency budget), and input noise level.</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- The 3 Pillars Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="p-6 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-brand-500/40 transition">
-          <div class="w-12 h-12 rounded-xl bg-brand-500/10 text-brand-400 flex items-center justify-center mb-4">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          </div>
-          <h4 class="text-lg font-bold text-white mb-2">1. Fast (Speed, Ultra-Low Latency)</h4>
-          <p class="text-slate-400 text-sm leading-relaxed">
-            Standard data, which makes up roughly 60–80% of inputs, is resolved in the early lightweight layers (High Confidence). Average inference time is cut by up to 70%, enabling immediate-response tasks such as emergency braking.
-          </p>
-        </div>
-
-        <div class="p-6 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-judge-cyan/40 transition">
-          <div class="w-12 h-12 rounded-xl bg-judge-cyan/10 text-judge-cyan flex items-center justify-center mb-4">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm4 4h8m-8 4h5"/></svg>
-          </div>
-          <h4 class="text-lg font-bold text-white mb-2">2. Sparse (Dynamic Sparsity)</h4>
-          <p class="text-slate-400 text-sm leading-relaxed">
-            Only the neurons/modules that are needed are fired on demand. Unlike static sparsity, which prunes weights permanently, the activation topology changes dynamically per input to save power.
-          </p>
-        </div>
-
-        <div class="p-6 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-judge-purple/40 transition">
-          <div class="w-12 h-12 rounded-xl bg-judge-purple/10 text-judge-purple flex items-center justify-center mb-4">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-          </div>
-          <h4 class="text-lg font-bold text-white mb-2">3. Adaptive (Dynamic Adaptability)</h4>
-          <p class="text-slate-400 text-sm leading-relaxed">
-            The Judge self-optimizes in real time the trade-off between input uncertainty and external costs (power consumption, time limits), gaining robustness that does not break down even in extreme environments.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- SECTION 2: INTERACTIVE SIMULATOR -->
-    <section id="simulator" class="scroll-mt-20">
-      <div class="mb-8">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-judge-cyan/10 border border-judge-cyan/30 text-judge-cyan text-xs font-semibold mb-2">
-          Interactive Lab
-        </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Dynamic Inference Pipeline Simulator</h2>
-        <p class="text-slate-400 text-sm sm:text-base">
-          Change the input complexity and external constraint parameters to see in real time how the “Judge (decision circuit)” switches the inference path and compute resources.
+        <p class="hero-note">
+          The High/Low benchmark and the network controller are research plans. The interactive model below is a
+          hand-written illustration; it makes no Jev calls and reports no measured accuracy, latency, or savings.
         </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#simulator">Explore the decision path <span aria-hidden="true">↘</span></a>
+          <a class="button button-quiet" href="#research">See what exists today <span aria-hidden="true">→</span></a>
+        </div>
       </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8">
-        <!-- Control Panel (4 cols) -->
-        <div class="lg:col-span-5 space-y-6">
-          <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-4 flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-brand-400"></span> Input Environment Parameters
-            </h3>
-
-            <!-- Slider 1: Task Ambiguity / Difficulty -->
-            <div class="space-y-2 mb-5">
-              <div class="flex justify-between text-xs">
-                <span class="text-slate-300 font-medium">Input ambiguity / difficulty ($D$)</span>
-                <span id="ambiguity-val" class="text-brand-400 font-mono font-bold">25% (Easy)</span>
-              </div>
-              <input id="slider-ambiguity" type="range" min="0" max="100" value="25" 
-                     class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-500">
-              <p class="text-[11px] text-slate-500">Low = clear pattern (answerable instantly) / High = noisy, hard edge case</p>
-            </div>
-
-            <!-- Slider 2: Latency Urgency -->
-            <div class="space-y-2 mb-5">
-              <div class="flex justify-between text-xs">
-                <span class="text-slate-300 font-medium">Urgency / time constraint ($U$)</span>
-                <span id="urgency-val" class="text-judge-amber font-mono font-bold">30% (Normal)</span>
-              </div>
-              <input id="slider-urgency" type="range" min="0" max="100" value="30" 
-                     class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
-              <p class="text-[11px] text-slate-500">High = millisecond-level response required (biased toward the Fast Path)</p>
-            </div>
-
-            <!-- Slider 3: Energy / Resource Cost Sensitivity -->
-            <div class="space-y-2 mb-6">
-              <div class="flex justify-between text-xs">
-                <span class="text-slate-300 font-medium">Power-saving priority ($E$)</span>
-                <span id="energy-val" class="text-judge-purple font-mono font-bold">50% (Balanced)</span>
-              </div>
-              <input id="slider-energy" type="range" min="0" max="100" value="50" 
-                     class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500">
-              <p class="text-[11px] text-slate-500">High = strictly suppress firing of extra deep modules</p>
-            </div>
-
-            <!-- Presets -->
-            <div>
-              <span class="text-xs text-slate-400 block mb-2 font-medium">Scenario presets:</span>
-              <div class="grid grid-cols-3 gap-2">
-                <button type="button" onclick="setPreset('routine')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
-                  Routine decision
-                </button>
-                <button type="button" onclick="setPreset('emergency')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
-                  Autonomous-driving emergency
-                </button>
-                <button type="button" onclick="setPreset('complex')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
-                  High-precision medical diagnosis
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Dynamic Status HUD -->
-          <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-4">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-              <span>Judge Internal Metrics</span>
-              <span id="decision-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30">
-                FAST PATH (Instant decision)
-              </span>
-            </h3>
-
-            <div class="space-y-3 font-mono text-xs">
-              <div>
-                <div class="flex justify-between text-slate-400 mb-1">
-                  <span>Confidence Score ($C$)</span>
-                  <span id="metric-conf" class="text-white font-bold">0.88</span>
-                </div>
-                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div id="bar-conf" class="h-full bg-brand-400 transition-all duration-300" style="width: 88%"></div>
-                </div>
-              </div>
-
-              <div>
-                <div class="flex justify-between text-slate-400 mb-1">
-                  <span>Dynamic Threshold ($\theta$)</span>
-                  <span id="metric-thresh" class="text-judge-amber font-bold">0.65</span>
-                </div>
-                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div id="bar-thresh" class="h-full bg-amber-400 transition-all duration-300" style="width: 65%"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Savings Stats -->
-            <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-center">
-              <div class="p-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span class="text-[10px] text-slate-400 block">Est. Compute (FLOPs)</span>
-                <span id="stat-flops" class="text-sm font-bold text-brand-400 font-mono">1.2 G</span>
-              </div>
-              <div class="p-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span class="text-[10px] text-slate-400 block">Inference Latency</span>
-                <span id="stat-latency" class="text-sm font-bold text-judge-cyan font-mono">4.1 ms</span>
-              </div>
-              <div class="p-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span class="text-[10px] text-slate-400 block">Energy Savings</span>
-                <span id="stat-savings" class="text-sm font-bold text-judge-purple font-mono">76 %</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Visualization Canvas (7 cols) -->
-        <div class="lg:col-span-7 flex flex-col justify-between">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <span class="inline-block w-2.5 h-2.5 rounded-full bg-judge-cyan animate-pulse"></span>
-              Neural Routing Activation
-            </h3>
-            <span class="text-xs text-slate-400">Real-time topology view</span>
-          </div>
-
-          <div class="relative w-full aspect-[16/10] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-inner">
-            <canvas id="pipeline-canvas" class="w-full h-full block"></canvas>
-            
-            <!-- Canvas Overlay Legend -->
-            <div class="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between text-[11px] text-slate-400 bg-slate-900/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-800 pointer-events-none">
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-brand-400"></span><span>Stage 1: Fast Sensory</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-judge-amber"></span><span>Dynamic Judge (Gate)</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-judge-purple"></span><span>Stage 2: Deep Experts</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-4 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs text-slate-400 leading-relaxed">
-            <strong class="text-slate-200">Behavior:</strong> 
-            <span id="explanation-text">
-              Because the confidence $C$ (0.88) exceeds the dynamic threshold $\theta$ (0.65), the decision is finalized right after Stage 1.
-              The heavy deep-neuron groups of Stage 2 stay asleep, immediately saving about 76% of the power.
-            </span>
-          </div>
-        </div>
+      <div class="hero-art" aria-label="A conceptual decision path from input through gates and two possible waves to a decision">
+        <div class="art-orbit orbit-one"></div>
+        <div class="art-orbit orbit-two"></div>
+        <div class="art-node art-input"><span class="art-index">01 / INPUT</span><strong>Market state</strong></div>
+        <div class="art-node art-gate"><span class="art-index">02 / CODE</span><strong>Validity gate</strong></div>
+        <div class="art-node art-wave"><span class="art-index">03 / JUDGES</span><strong>Wave 0</strong></div>
+        <div class="art-node art-evidence"><span class="art-index">04 / SUMMARY</span><strong>Evidence State</strong></div>
+        <div class="art-node art-route"><span class="art-index">05 / CONTROL</span><strong>Stop or ask more?</strong></div>
+        <div class="art-node art-outcome"><span class="art-index">06 / OUTPUT</span><strong>HIGH · LOW · SKIP</strong></div>
+        <p class="art-caption">Conceptual path · later waves run only when the evidence calls for them</p>
       </div>
     </section>
 
-    <!-- SECTION 3: ARCHITECTURE DEEP DIVE -->
-    <section id="architecture" class="scroll-mt-20">
-      <div class="mb-10 text-center">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-judge-purple/10 border border-judge-purple/30 text-judge-purple text-xs font-semibold mb-2">
-          Structural Design
-        </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Architecture Comparison</h2>
-        <p class="mt-2 text-slate-400 text-sm sm:text-base">How conventional AI models, MoE (Mixture of Experts), and the Dynamic Judge Network differ</p>
-      </div>
+    <div class="section-divider shell" aria-hidden="true"><span>RESEARCH QUESTION / 001</span><span>THE NEXT JUDGMENT IS A DECISION</span></div>
 
-      <!-- Tab Buttons for Architecture Switch -->
-      <div class="flex justify-center mb-8">
-        <div class="inline-flex p-1 bg-slate-900 rounded-xl border border-slate-800">
-          <button type="button" onclick="switchArchTab('static')" id="tab-btn-static" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition text-slate-400 hover:text-white">
-            ① Static Dense Model
-          </button>
-          <button type="button" onclick="switchArchTab('moe')" id="tab-btn-moe" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition text-slate-400 hover:text-white">
-            ② Typical MoE (Static-Depth Sparse)
-          </button>
-          <button type="button" onclick="switchArchTab('djn')" id="tab-btn-djn" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition bg-brand-500 text-slate-950 shadow-md">
-            ③ Dynamic Judge Network (Bio-inspired)
-          </button>
-        </div>
+    <section class="intro shell" id="how-it-works" aria-labelledby="idea-title">
+      <div class="section-heading">
+        <p class="kicker">The idea</p>
+        <h2 id="idea-title">A network of judgments,<br>not a deeper single model.</h2>
+        <p>DJN studies when additional judgment is useful, which specialist should run next, and when the evidence supports no action.</p>
       </div>
-
-      <!-- Arch Content Container -->
-      <div id="arch-content-card" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8">
-        <!-- Content will be injected dynamically via JS -->
+      <div class="principles">
+        <article class="principle">
+          <span class="principle-number">01</span>
+          <h3>Facts first</h3>
+          <p>Code computes exact features and checks data sufficiency before an uncertain Judge is asked anything.</p>
+        </article>
+        <article class="principle">
+          <span class="principle-number">02</span>
+          <h3>Judges in waves</h3>
+          <p>Independent Judges can share a request. Their answers form a compact Evidence State that guides the next wave.</p>
+        </article>
+        <article class="principle">
+          <span class="principle-number">03</span>
+          <h3>Stopping is a choice</h3>
+          <p>Counter-evidence may change a direction. Missing data, disagreement, or low actionability can produce SKIP.</p>
+        </article>
       </div>
     </section>
 
-    <!-- SECTION 4: MATHEMATICAL MODEL & BOUNDARY GRAPH -->
-    <section id="math-model" class="scroll-mt-20">
-      <div class="mb-10">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold mb-2">
-          Mathematical Formulation
-        </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Mathematical Model of Judge Decisions</h2>
-        <p class="mt-2 text-slate-400 text-sm sm:text-base">Formulation of the confidence estimate and dynamic cost function that shape the decision boundary</p>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <!-- Math Formula Explanations (6 cols) -->
-        <div class="lg:col-span-6 space-y-6">
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <h3 class="text-base font-bold text-white mb-2 flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-brand-400"></span>
-              1. Quantifying Prediction Confidence ($C$)
-            </h3>
-            <p class="text-xs text-slate-300 leading-relaxed mb-3">
-              Given the initial features $h^{(1)}$, the Judge computes confidence from the output probability distribution $P = \text{Softmax}(W_j h^{(1)})$ using either entropy or the margin between the top two classes:
-            </p>
-            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-brand-300">
-              C(x) = p_{(1)} - p_{(2)} \quad \text{or} \quad C(x) = 1 - \frac{H(P)}{\log K}
-            </div>
-            <p class="text-[11px] text-slate-500 mt-2">
-              Note: $p_{(1)}, p_{(2)}$ are the probabilities of the two highest-probability classes. $H(P)$ is the Shannon entropy.
-            </p>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <h3 class="text-base font-bold text-white mb-2 flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-judge-amber"></span>
-              2. Environment-Linked Dynamic Threshold ($\theta_{dynamic}$)
-            </h3>
-            <p class="text-xs text-slate-300 leading-relaxed mb-3">
-              The threshold $\theta$ is not fixed; it slides adaptively according to the external urgency $U \in [0, 1]$ and the compute-cost sensitivity $E \in [0, 1]$:
-            </p>
-            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-amber-300">
-              \theta(t) = \text{clip}\Big( \theta_0 - \alpha \cdot U(t) - \beta \cdot E(t), \; \theta_{min}, \; \theta_{max} \Big)
-            </div>
-            <p class="text-[11px] text-slate-400 mt-2">
-              Under urgency ($U \uparrow$) or power saving ($E \uparrow$), the threshold drops and even modest confidence is accepted for an immediate answer (Fast Path).
-            </p>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <h3 class="text-base font-bold text-white mb-2 flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-judge-purple"></span>
-              3. Joint Objective (Combined Loss Function)
-            </h3>
-            <p class="text-xs text-slate-300 leading-relaxed mb-3">
-              Training is end-to-end: a penalty $\mathcal{L}_{cost}$ for wasted computation is added to the task-accuracy loss $\mathcal{L}_{task}$:
-            </p>
-            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-purple-300">
-              \mathcal{L} = \mathcal{L}_{task}(y, \hat{y}) + \lambda_1 \cdot \mathbb{I}(\text{Deep}) \cdot \text{FLOPs}_{deep} + \lambda_2 \cdot \mathcal{L}_{judge}
-            </div>
-          </div>
-        </div>
-
-        <!-- Interactive Decision Boundary Graph (6 cols) -->
-        <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+    <section class="simulator-section" id="simulator" aria-labelledby="sim-title">
+      <div class="shell">
+        <div class="sim-heading">
           <div>
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-bold text-white">Decision Space (Phase Space)</h3>
-              <span class="text-xs text-slate-400 font-mono">X: difficulty / Y: confidence</span>
-            </div>
-            <div class="relative w-full aspect-square max-h-[380px] bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
-              <canvas id="boundary-canvas" class="w-full h-full block"></canvas>
-            </div>
+            <p class="kicker">Interactive toy model</p>
+            <h2 id="sim-title">Put the decision path under pressure.</h2>
+            <p>Change synthetic inputs. Watch the deterministic controller choose Judges and stop. The scores below are illustrative rules, not calibrated probabilities or benchmark results.</p>
           </div>
+          <div class="sim-label"><span class="sim-label-dot"></span> NO API CALLS · NO REAL MARKET DATA</div>
+        </div>
 
-          <div class="mt-4 p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
-            <span class="text-white font-semibold block mb-1">How to read the graph:</span>
-            Samples that land in the green zone ($C \ge \theta$) exit early immediately via the <strong>Fast Path</strong>. The boundary line (yellow) moves up and down in real time with the current slider settings.
+        <div class="workbench">
+          <aside class="controls-panel" aria-labelledby="controls-title">
+            <div class="panel-heading">
+              <div>
+                <span class="panel-index">01 / INPUTS</span>
+                <h3 id="controls-title">Shape the state</h3>
+              </div>
+              <span class="panel-symbol" aria-hidden="true">↗</span>
+            </div>
+            <p class="control-help">Synthetic feature values, chosen only to expose the routing rules.</p>
+
+            <div class="preset-list" role="group" aria-label="Example scenarios">
+              <button class="preset is-selected" type="button" data-preset="clear-high">Clear HIGH</button>
+              <button class="preset" type="button" data-preset="clear-low">Clear LOW</button>
+              <button class="preset" type="button" data-preset="conflict">Conflicting</button>
+              <button class="preset" type="button" data-preset="missing">Missing data</button>
+            </div>
+
+            <div class="control-stack">
+              <div class="control">
+                <div class="control-label"><label for="trend">Trend signal</label><output id="trend-value" for="trend">+85</output></div>
+                <input id="trend" type="range" min="-100" max="100" value="85">
+                <div class="range-ends"><span>LOW −100</span><span>HIGH +100</span></div>
+              </div>
+              <div class="control">
+                <div class="control-label"><label for="momentum">Momentum signal</label><output id="momentum-value" for="momentum">+70</output></div>
+                <input id="momentum" type="range" min="-100" max="100" value="70">
+                <div class="range-ends"><span>LOW −100</span><span>HIGH +100</span></div>
+              </div>
+              <div class="control">
+                <div class="control-label"><label for="reversal">Mean-reversion risk</label><output id="reversal-value" for="reversal">10%</output></div>
+                <input id="reversal" type="range" min="0" max="100" value="10">
+                <div class="range-ends"><span>LOW</span><span>HIGH</span></div>
+              </div>
+              <div class="control">
+                <div class="control-label"><label for="noise">Input noise</label><output id="noise-value" for="noise">10%</output></div>
+                <input id="noise" type="range" min="0" max="100" value="10">
+                <div class="range-ends"><span>CLEAR</span><span>NOISY</span></div>
+              </div>
+              <div class="control">
+                <div class="control-label"><label for="completeness">Data completeness</label><output id="completeness-value" for="completeness">95%</output></div>
+                <input id="completeness" type="range" min="0" max="100" value="95">
+                <div class="range-ends"><span>INSUFFICIENT</span><span>COMPLETE</span></div>
+              </div>
+            </div>
+
+            <div class="control-options">
+              <label class="select-label" for="max-waves">Maximum Judge waves</label>
+              <select id="max-waves">
+                <option value="2" selected>2 waves · allow counter-evidence</option>
+                <option value="1">1 wave · stop if more is needed</option>
+              </select>
+              <label class="switch-row" for="speculative">
+                <span><strong>Speculative fetch</strong><small>Fetch Mean Reversion with Wave 0 even if the path may not use it.</small></span>
+                <input id="speculative" type="checkbox">
+              </label>
+            </div>
+          </aside>
+
+          <div class="results-panel">
+            <div class="verdict-card" id="verdict-card" aria-live="polite">
+              <div class="verdict-top"><span class="panel-index">02 / RESULT</span><span id="verdict-path" class="verdict-path">Wave 0 stop</span></div>
+              <div class="verdict-main">
+                <div>
+                  <p class="verdict-caption">Synthetic decision</p>
+                  <strong id="decision" class="decision">HIGH</strong>
+                </div>
+                <p id="decision-explanation" class="verdict-explanation">The evidence supports a directional decision.</p>
+              </div>
+              <p class="verdict-disclaimer">This result illustrates a rule. It is not a trading signal or a measured prediction.</p>
+            </div>
+
+            <div class="route-panel" aria-labelledby="route-title">
+              <div class="panel-heading compact"><div><span class="panel-index">03 / PATH</span><h3 id="route-title">What ran, and why</h3></div><span id="route-summary" class="route-summary">1 wave</span></div>
+              <div class="route-track">
+                <div class="route-stage" id="stage-gate"><span class="stage-step">GATE</span><strong>Data check</strong><small id="gate-status">Passed</small></div>
+                <span class="route-arrow" aria-hidden="true">→</span>
+                <div class="route-stage" id="stage-wave0"><span class="stage-step">WAVE 0</span><strong>Initial Judges</strong><small id="wave0-status">3 activated</small></div>
+                <span class="route-arrow" aria-hidden="true">→</span>
+                <div class="route-stage" id="stage-evidence"><span class="stage-step">STATE</span><strong>Evidence State</strong><small id="evidence-status">Summary ready</small></div>
+                <span class="route-arrow" aria-hidden="true">→</span>
+                <div class="route-stage" id="stage-wave1"><span class="stage-step">WAVE 1</span><strong>Counter-evidence</strong><small id="wave1-status">Not needed</small></div>
+              </div>
+              <p id="route-reason" class="route-reason"></p>
+              <div id="judge-chips" class="judge-chips" aria-label="Activated Judges"></div>
+            </div>
+
+            <div class="detail-grid">
+              <div class="evidence-panel" aria-labelledby="evidence-title">
+                <div class="panel-heading compact"><div><span class="panel-index">04 / SUMMARY</span><h3 id="evidence-title">Evidence State</h3></div></div>
+                <p class="detail-note">Wave 0 forms a compact summary. A later Judge can receive that snapshot with selected raw features.</p>
+                <div class="state-snapshot" aria-label="Wave 0 routing snapshot">
+                  <strong class="state-label">After Wave 0 · used for routing</strong>
+                  <div class="snapshot-values">
+                    <span>Direction <strong id="routing-direction">+0.78</strong></span>
+                    <span>Disagreement <strong id="routing-disagreement">0.08</strong></span>
+                    <span>Uncertainty <strong id="routing-uncertainty">0.25</strong></span>
+                  </div>
+                </div>
+                <strong class="state-label final-state-label">After the final wave · used for decision</strong>
+                <div class="metric"><div><span>Direction score</span><strong id="metric-direction">+0.78</strong></div><div class="meter"><i id="bar-direction"></i></div></div>
+                <div class="metric"><div><span>Disagreement</span><strong id="metric-disagreement">0.08</strong></div><div class="meter"><i id="bar-disagreement"></i></div></div>
+                <div class="metric"><div><span>Uncertainty</span><strong id="metric-uncertainty">0.25</strong></div><div class="meter"><i id="bar-uncertainty"></i></div></div>
+                <div class="metric"><div><span>Actionability</span><strong id="metric-actionability">0.91</strong></div><div class="meter"><i id="bar-actionability"></i></div></div>
+              </div>
+
+              <div class="counts-panel" aria-labelledby="counts-title">
+                <div class="panel-heading compact"><div><span class="panel-index">05 / ACCOUNTING</span><h3 id="counts-title">Judge accounting</h3></div></div>
+                <p class="detail-note">Question and path counts differ when an answer is fetched speculatively.</p>
+                <div class="count-grid">
+                  <div><strong id="count-requested">3</strong><span>Requested</span></div>
+                  <div><strong id="count-fetched">3</strong><span>Fetched</span></div>
+                  <div><strong id="count-activated">3</strong><span>Activated</span></div>
+                  <div><strong id="count-used">3</strong><span>Used</span></div>
+                </div>
+                <p class="request-note"><strong id="request-count">1</strong> simulated provider request<span id="request-plural"></span> across <strong id="wave-count">1</strong> wave<span id="wave-plural"></span>.</p>
+              </div>
+            </div>
+
+            <div class="comparison-panel" aria-labelledby="comparison-title">
+              <div class="panel-heading compact"><div><span class="panel-index">06 / BASELINE</span><h3 id="comparison-title">Fixed set vs. this path</h3></div></div>
+              <p class="detail-note">A toy fixed set asks six questions on every valid input: Trend, Momentum, Noise, Mean Reversion, Counter-HIGH, and Counter-LOW. The dynamic path asks only the questions shown above. Counts are not accuracy or cost measurements.</p>
+              <div class="comparison-row"><span>Fixed set</span><div class="comparison-track"><i id="fixed-bar"></i></div><strong id="fixed-count">6</strong></div>
+              <div class="comparison-row"><span>This path</span><div class="comparison-track"><i id="dynamic-bar"></i></div><strong id="dynamic-count">3</strong></div>
+              <p id="comparison-note" class="comparison-note"></p>
+            </div>
+
+            <div class="trace-panel" aria-labelledby="trace-title">
+              <div class="panel-heading compact"><div><span class="panel-index">07 / LOG</span><h3 id="trace-title">Decision trace</h3></div></div>
+              <ol id="trace-list" class="trace-list"></ol>
+            </div>
+
+            <details class="rules-panel">
+              <summary>Inspect the toy routing rules <span aria-hidden="true">＋</span></summary>
+              <div class="rules-content">
+                <p>These deliberately simple rules make the illustration reproducible. Their thresholds and weights are not calibrated to market data.</p>
+                <ol>
+                  <li><strong>Gate:</strong> completeness below 40% returns SKIP before any Judge question.</li>
+                  <li><strong>Wave 0:</strong> Trend, Momentum, and Noise run together. Direction = 0.55 × Trend + 0.45 × Momentum; signed inputs are scaled to −1…+1. Disagreement = |Trend − Momentum| ÷ 2. Uncertainty = clip(1 − |direction| + 0.25 × Noise + 0.125 × disagreement).</li>
+                  <li><strong>Route:</strong> another wave runs when uncertainty is at least 0.55, reversal risk at least 0.55, or disagreement at least 0.45. A one-wave budget returns SKIP when more evidence is needed.</li>
+                  <li><strong>Wave 1:</strong> a Counter-HIGH or Counter-LOW Judge challenges the preliminary direction. Mean Reversion joins when reversal risk is at least 0.45 or noise at least 0.55. Counter strength = clip(0.5 × Reversal + 0.25 × Noise + 0.25 × disagreement); it reduces the preliminary score, with an additional reversal adjustment when Mean Reversion runs.</li>
+                  <li><strong>Stop:</strong> the final direction is used only when its score magnitude is at least 0.34, uncertainty at most 0.68, and actionability at least 0.55; otherwise the result is SKIP. Actionability falls as noise, reversal risk, disagreement, missing data, or counter-evidence rises.</li>
+                </ol>
+              </div>
+            </details>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- SECTION 5: PYTORCH-LIKE CODE EXPLORATION -->
-    <section id="code-viewer" class="scroll-mt-20">
-      <div class="mb-10">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-semibold mb-2">
-          Implementation Specs
-        </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Implementation Reference (PyTorch-like Pseudocode)</h2>
-        <p class="mt-2 text-slate-400 text-sm sm:text-base">Core module structure and an example inference forward pass of `dynamic-judge-network`</p>
+    <section class="definitions shell" aria-labelledby="definitions-title">
+      <div class="section-heading narrow">
+        <p class="kicker">Read the counts carefully</p>
+        <h2 id="definitions-title">A question asked is not always evidence used.</h2>
       </div>
-
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-        <!-- File Tab Header -->
-        <div class="bg-slate-950 px-6 py-3 border-b border-slate-800 flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
-            <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
-            <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
-            <span class="ml-2 font-mono text-xs text-slate-400">dynamic_judge_network.py</span>
-          </div>
-          <button type="button" onclick="copyCode()" id="copy-btn" class="text-xs px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono transition">
-            Copy code
-          </button>
-        </div>
-
-        <!-- Code Block -->
-        <pre class="p-6 font-mono text-xs sm:text-sm text-slate-300 overflow-x-auto leading-relaxed max-h-[500px]"><code><span class="text-slate-500"># Bio-inspired Dynamic Judge Network Core Implementation</span>
-<span class="text-purple-400">import</span> torch
-<span class="text-purple-400">import</span> torch.nn <span class="text-purple-400">as</span> nn
-<span class="text-purple-400">import</span> torch.nn.functional <span class="text-purple-400">as</span> F
-
-<span class="text-blue-400">class</span> <span class="text-yellow-300">DynamicJudgeBlock</span>(nn.Module):
-    <span class="text-slate-500">"""
-    Estimates confidence from the input features and
-    dynamically arbitrates between an early exit (Fast Exit) and deep computation (Deep Path).
-    """</span>
-    <span class="text-blue-400">def</span> <span class="text-green-400">__init__</span>(self, feat_dim, num_classes, base_threshold=0.75):
-        <span class="text-blue-400">super</span>().__init__()
-        self.fast_classifier = nn.Linear(feat_dim, num_classes)
-        self.confidence_head = nn.Sequential(
-            nn.Linear(feat_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1),
-            nn.Sigmoid()
-        )
-        self.base_threshold = base_threshold
-
-    <span class="text-blue-400">def</span> <span class="text-green-400">compute_adaptive_threshold</span>(self, urgency=0.0, energy_bias=0.0):
-        <span class="text-slate-500"># Mimics biological emergency response: relax the criterion under urgency</span>
-        theta = self.base_threshold - (0.35 * urgency) - (0.25 * energy_bias)
-        <span class="text-purple-400">return</span> torch.clamp(torch.tensor(theta), min=0.20, max=0.95)
-
-    <span class="text-blue-400">def</span> <span class="text-green-400">forward</span>(self, x, urgency=0.0, energy_bias=0.0):
-        logits_fast = self.fast_classifier(x)
-        confidence = self.confidence_head(x).squeeze(-1) <span class="text-slate-500"># [Batch]</span>
-        
-        dynamic_threshold = self.compute_adaptive_threshold(urgency, energy_bias)
-        should_fast_exit = confidence >= dynamic_threshold
-        
-        <span class="text-purple-400">return</span> logits_fast, confidence, should_fast_exit
-
-
-<span class="text-blue-400">class</span> <span class="text-yellow-300">DynamicJudgeNetwork</span>(nn.Module):
-    <span class="text-blue-400">def</span> <span class="text-green-400">__init__</span>(self, in_features, hidden_dim, num_classes):
-        <span class="text-blue-400">super</span>().__init__()
-        <span class="text-slate-500"># Stage 1: Lightweight sensory feature extraction (Fast Sensory)</span>
-        self.stage1 = nn.Sequential(
-            nn.Linear(in_features, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
-            nn.GELU()
-        )
-        <span class="text-slate-500"># Judge Unit: dynamic decision unit</span>
-        self.judge = DynamicJudgeBlock(hidden_dim, num_classes)
-        
-        <span class="text-slate-500"># Stage 2: Deep reasoning module (Deep Experts / Deliberative Network)</span>
-        self.stage2 = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim * 4),
-            nn.GELU(),
-            nn.Linear(hidden_dim * 4, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, num_classes)
-        )
-
-    <span class="text-blue-400">def</span> <span class="text-green-400">forward</span>(self, x, urgency=0.0, energy_bias=0.0):
-        <span class="text-slate-500"># 1. Extract shared initial features</span>
-        h1 = self.stage1(x)
-        
-        <span class="text-slate-500"># 2. Dynamic routing decision by the Judge</span>
-        logits_fast, confidence, should_fast_exit = self.judge(h1, urgency, energy_bias)
-        
-        <span class="text-slate-500"># 3. If the Fast Exit condition is met, skip Stage 2 entirely (0 FLOPs)</span>
-        <span class="text-purple-400">if</span> should_fast_exit.all():
-            <span class="text-purple-400">return</span> logits_fast, {"path": "fast_only", "savings": 0.78}
-        
-        <span class="text-slate-500"># Activate Stage 2 only for hard samples</span>
-        logits_deep = self.stage2(h1)
-        
-        <span class="text-slate-500"># Merge final outputs (confidence-weighted or switched)</span>
-        final_output = torch.where(should_fast_exit.unsqueeze(-1), logits_fast, logits_deep)
-        <span class="text-purple-400">return</span> final_output, {"path": "hybrid_or_deep", "savings": 0.15}
-</code></pre>
+      <div class="definition-grid">
+        <article><span>01</span><h3>Requested</h3><p>A question was sent to the illustrative provider boundary. A failed call would still count here.</p></article>
+        <article><span>02</span><h3>Fetched</h3><p>An answer returned. In this toy, every request succeeds; real experiments must log failures.</p></article>
+        <article><span>03</span><h3>Activated</h3><p>The controller placed the Judge on the reasoning path. A prefetched answer may never be activated.</p></article>
+        <article><span>04</span><h3>Used</h3><p>The evidence affects routing or the final decision. All activated Judges in this toy are used.</p></article>
       </div>
     </section>
 
+    <section class="research-section" id="research" aria-labelledby="research-title">
+      <div class="shell research-layout">
+        <div>
+          <p class="kicker">Research status</p>
+          <h2 id="research-title">The architecture follows evidence.</h2>
+          <p class="research-lead">The repository currently has a provider-agnostic Judge contract, a Jev stage executor, and SQLite records for provider calls and Judge answers. It does not yet have the network controller, benchmark pipeline, or end-to-end experiment results.</p>
+          <div class="research-links">
+            <a href="https://github.com/RoyHermit/dynamic-judge-network/blob/main/README.md" target="_blank" rel="noopener noreferrer">Project README <span aria-hidden="true">↗</span></a>
+            <a href="https://github.com/RoyHermit/dynamic-judge-network/blob/main/docs/context/djn-research-direction-update.md" target="_blank" rel="noopener noreferrer">Research direction update <span aria-hidden="true">↗</span></a>
+            <a href="https://github.com/RoyHermit/dynamic-judge-network/blob/main/docs/context/dynamic-judge-network-context.md" target="_blank" rel="noopener noreferrer">Full research context <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="roadmap">
+          <div><span class="roadmap-index">NOW</span><strong>Foundation</strong><p>Judge, executor, and storage contracts are implemented.</p></div>
+          <div><span class="roadmap-index">NEXT</span><strong>Fixed baselines</strong><p>Experiment 1 will establish a simple comparison before dynamic routing.</p></div>
+          <div><span class="roadmap-index">RESEARCH</span><strong>Dynamic paths</strong><p>Test waves, counter-evidence, stopping, Evidence State, and cost one mechanism at a time.</p></div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <!-- Footer -->
-  <footer class="mt-20 border-t border-slate-800 bg-slate-950/80 py-8 text-center text-xs text-slate-500">
-    <div class="max-w-7xl mx-auto px-4 space-y-2">
-      <p>Researching bio-inspired dynamic judge networks for fast, sparse, and adaptive AI decision-making.</p>
-      <p>Based on concept repository: <a href="https://github.com/RoyHermit/dynamic-judge-network" target="_blank" class="text-brand-400 hover:underline">RoyHermit/dynamic-judge-network</a></p>
-      <p>Illustrative simulation only: the figures shown (FLOPs, latency, savings) are not measured results of this project.</p>
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <span>Dynamic Judge Network <span class="muted">/ research explainer</span></span>
+      <span>Synthetic scenarios · no model calls · no measured results</span>
     </div>
   </footer>
-
-  <!-- Toast Notification Container for Copied Text -->
-  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-emerald-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs shadow-2xl flex items-center gap-2 pointer-events-none">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-    <span>Code copied to clipboard!</span>
-  </div>
-
-  <script>
-    // State Variables
-    let ambiguity = 25; // 0 - 100
-    let urgency = 30;   // 0 - 100
-    let energy = 50;    // 0 - 100
-
-    // Canvas Contexts
-    let pCanvas, pCtx;
-    let bCanvas, bCtx;
-    let animFrameId;
-    let particleOffset = 0;
-
-    // Architecture Comparison Data
-    const archData = {
-      static: {
-        title: "① Static Dense Architecture",
-        badge: "Fixed compute, high load",
-        badgeColor: "border-rose-500/30 text-rose-400 bg-rose-500/10",
-        desc: "Every input, however simple, passes through all layers and all neurons of the network (100% FLOPs). Inference latency is always constant at its maximum, leaving no flexibility for power saving or emergency response.",
-        features: [
-          "Compute depth: Fixed (full pass from Layer 1 to Layer N)",
-          "FLOPs reduction: 0% (always full consumption)",
-          "Inference latency: High and fixed (e.g., 18.5 ms)",
-          "Biological plausibility: Low (no distinction between reflex and deliberation)"
-        ]
-      },
-      moe: {
-        title: "② Typical Sparse MoE (Static-Depth Mixture of Experts)",
-        badge: "Width-sparse, fixed depth",
-        badgeColor: "border-judge-cyan/30 text-judge-cyan bg-judge-cyan/10",
-        desc: "A router selectively activates only certain expert layers, but the model's depth (all layers) is generally traversed to the end. It excels at width-wise sparsity, but flexible depth-wise early exit, such as “finishing an easy task at the first layer,” is not its main purpose.",
-        features: [
-          "Compute depth: Fixed deep (only Top-K experts selected within each block)",
-          "FLOPs reduction: about 30–50%",
-          "Inference latency: Moderate (routing overhead)",
-          "Biological plausibility: Medium (functional localization, but passes through every stage)"
-        ]
-      },
-      djn: {
-        title: "③ Dynamic Judge Network (Bio-inspired Gating & Adaptive Depth)",
-        badge: "Dynamic depth × width arbitration, ultra-low power",
-        badgeColor: "border-brand-500/30 text-brand-400 bg-brand-500/10",
-        desc: "A lightweight “Judge” sits right after the initial sensory layer. Like the attention mechanisms of the basal ganglia and frontal lobe, it instantly measures input ambiguity and external urgency. Easy inputs are answered right away by Stage 1 alone (Fast Path), leaving the heavy Stage 2 fully dormant.",
-        features: [
-          "Compute depth: Dynamic (adapts from a single layer to full depth)",
-          "FLOPs reduction: up to 70–85%",
-          "Inference latency: Scales dynamically from ultra-fast to high-precision (e.g., 3.2 ms – 16.0 ms)",
-          "Biological plausibility: Very high (implements System 1/System 2 dual-process theory)"
-        ]
-      }
-    };
-
-    window.addEventListener('DOMContentLoaded', () => {
-      // Elements
-      const sliderAmbiguity = document.getElementById('slider-ambiguity');
-      const sliderUrgency = document.getElementById('slider-urgency');
-      const sliderEnergy = document.getElementById('slider-energy');
-
-      pCanvas = document.getElementById('pipeline-canvas');
-      pCtx = pCanvas.getContext('2d');
-      bCanvas = document.getElementById('boundary-canvas');
-      bCtx = bCanvas.getContext('2d');
-
-      // Bind Sliders
-      sliderAmbiguity.addEventListener('input', (e) => {
-        ambiguity = parseInt(e.target.value);
-        document.getElementById('ambiguity-val').innerText = `${ambiguity}% (${ambiguity < 40 ? 'Easy' : ambiguity < 70 ? 'Moderate' : 'Hard / noisy'})`;
-        updateSimulation();
-      });
-
-      sliderUrgency.addEventListener('input', (e) => {
-        urgency = parseInt(e.target.value);
-        document.getElementById('urgency-val').innerText = `${urgency}% (${urgency < 35 ? 'Normal' : urgency < 70 ? 'Elevated' : 'Urgent'})`;
-        updateSimulation();
-      });
-
-      sliderEnergy.addEventListener('input', (e) => {
-        energy = parseInt(e.target.value);
-        document.getElementById('energy-val').innerText = `${energy}% (${energy < 35 ? 'Accuracy-first' : energy < 70 ? 'Balanced' : 'Max saving'})`;
-        updateSimulation();
-      });
-
-      // Resize observer for responsive canvas
-      window.addEventListener('resize', handleCanvasResize);
-      handleCanvasResize();
-
-      // Initial View
-      switchArchTab('djn');
-      updateSimulation();
-      startAnimationLoop();
-    });
-
-    function handleCanvasResize() {
-      if (!pCanvas || !bCanvas) return;
-      const pRect = pCanvas.getBoundingClientRect();
-      pCanvas.width = pRect.width * window.devicePixelRatio;
-      pCanvas.height = pRect.height * window.devicePixelRatio;
-
-      const bRect = bCanvas.getBoundingClientRect();
-      bCanvas.width = bRect.width * window.devicePixelRatio;
-      bCanvas.height = bRect.height * window.devicePixelRatio;
-
-      drawBoundaryGraph();
-    }
-
-    function updateSimulation() {
-      // Confidence Calculation: high ambiguity reduces confidence
-      // C = 1.0 - (ambiguity / 100) * 0.75 + slight non-linear noise
-      const normAmbiguity = ambiguity / 100;
-      const confidence = Math.max(0.08, Math.min(0.99, (1.0 - Math.pow(normAmbiguity, 1.2) * 0.82)));
-
-      // Dynamic Threshold: base threshold 0.75 minus urgency bonus minus energy bias
-      // When Urgency is high, threshold drops (we need fast answers)
-      // When Energy saving is high, threshold drops (we cannot afford deep reasoning)
-      const baseThresh = 0.75;
-      const thresh = Math.max(0.20, Math.min(0.95, baseThresh - (urgency / 100) * 0.35 - (energy / 100) * 0.25));
-
-      const isFastPath = confidence >= thresh;
-
-      // Update HUD Metrics
-      document.getElementById('metric-conf').innerText = confidence.toFixed(2);
-      document.getElementById('bar-conf').style.width = `${(confidence * 100).toFixed(0)}%`;
-      document.getElementById('metric-thresh').innerText = thresh.toFixed(2);
-      document.getElementById('bar-thresh').style.width = `${(thresh * 100).toFixed(0)}%`;
-
-      const badge = document.getElementById('decision-badge');
-      const statFlops = document.getElementById('stat-flops');
-      const statLatency = document.getElementById('stat-latency');
-      const statSavings = document.getElementById('stat-savings');
-      const explText = document.getElementById('explanation-text');
-
-      if (isFastPath) {
-        badge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30";
-        badge.innerText = "FAST PATH (Instant early exit)";
-        statFlops.innerText = "1.1 G";
-        statFlops.className = "text-sm font-bold text-brand-400 font-mono";
-        statLatency.innerText = `${(3.2 + (ambiguity * 0.02)).toFixed(1)} ms`;
-        statSavings.innerText = `${Math.min(88, Math.max(65, 80 - ambiguity * 0.15)).toFixed(0)} %`;
-
-        explText.innerHTML = `
-          Confidence $C$ (<strong class="text-brand-400">${confidence.toFixed(2)}</strong>) exceeds the dynamic threshold $\\theta$ (<strong class="text-amber-400">${thresh.toFixed(2)}</strong>).<br>
-          Because the Stage 1 judge decided it was “sufficiently confident,” inference <strong>completed immediately without activating Stage 2 (Deep Experts)</strong>, achieving major power savings and ultra-low latency.
-        `;
-      } else {
-        badge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30";
-        badge.innerText = "DEEP PATH (Deep reasoning activated)";
-        statFlops.innerText = "4.8 G";
-        statFlops.className = "text-sm font-bold text-purple-400 font-mono";
-        statLatency.innerText = `${(14.5 + (ambiguity * 0.05)).toFixed(1)} ms`;
-        statSavings.innerText = "12 %";
-
-        explText.innerHTML = `
-          The input is difficult, and the confidence $C$ (<strong class="text-rose-400">${confidence.toFixed(2)}</strong>) did not reach the dynamic threshold $\\theta$ (<strong class="text-amber-400">${thresh.toFixed(2)}</strong>).<br>
-          To prevent misjudgments and malfunctions, the Judge <strong>fires Stage 2 (Deep Experts)</strong> and mobilizes additional compute for high-precision deliberate reasoning.
-        `;
-      }
-
-      drawBoundaryGraph();
-    }
-
-    function setPreset(type) {
-      if (type === 'routine') {
-        ambiguity = 15;
-        urgency = 20;
-        energy = 60;
-      } else if (type === 'emergency') {
-        ambiguity = 40;
-        urgency = 90;
-        energy = 40;
-      } else if (type === 'complex') {
-        ambiguity = 85;
-        urgency = 10;
-        energy = 20;
-      }
-
-      document.getElementById('slider-ambiguity').value = ambiguity;
-      document.getElementById('slider-urgency').value = urgency;
-      document.getElementById('slider-energy').value = energy;
-
-      document.getElementById('ambiguity-val').innerText = `${ambiguity}%`;
-      document.getElementById('urgency-val').innerText = `${urgency}%`;
-      document.getElementById('energy-val').innerText = `${energy}%`;
-
-      updateSimulation();
-    }
-
-    function startAnimationLoop() {
-      function render() {
-        drawPipelineAnimation();
-        particleOffset += 1.5;
-        animFrameId = requestAnimationFrame(render);
-      }
-      render();
-    }
-
-    function drawPipelineAnimation() {
-      if (!pCtx || !pCanvas) return;
-      const w = pCanvas.width;
-      const h = pCanvas.height;
-      pCtx.clearRect(0, 0, w, h);
-
-      const normAmbiguity = ambiguity / 100;
-      const confidence = Math.max(0.08, Math.min(0.99, (1.0 - Math.pow(normAmbiguity, 1.2) * 0.82)));
-      const thresh = Math.max(0.20, Math.min(0.95, 0.75 - (urgency / 100) * 0.35 - (energy / 100) * 0.25));
-      const isFastPath = confidence >= thresh;
-
-      // Coordinate nodes
-      const nodeInput = { x: w * 0.12, y: h * 0.5 };
-      const nodeStage1 = { x: w * 0.32, y: h * 0.5 };
-      const nodeJudge = { x: w * 0.52, y: h * 0.5 };
-      
-      const nodeFastExit = { x: w * 0.88, y: h * 0.24 };
-      const nodeDeep1 = { x: w * 0.72, y: h * 0.72 };
-      const nodeDeep2 = { x: w * 0.88, y: h * 0.72 };
-
-      // Helper function to draw glowing lines
-      function drawConnection(from, to, color, active, pulse) {
-        pCtx.beginPath();
-        pCtx.moveTo(from.x, from.y);
-        pCtx.lineTo(to.x, to.y);
-        pCtx.lineWidth = active ? 3.5 * window.devicePixelRatio : 1.5 * window.devicePixelRatio;
-        pCtx.strokeStyle = active ? color : 'rgba(51, 65, 85, 0.4)';
-        pCtx.stroke();
-
-        // Animated flow particles
-        if (active && pulse) {
-          const dx = to.x - from.x;
-          const dy = to.y - from.y;
-          const dist = Math.hypot(dx, dy);
-          const pPos = (particleOffset % dist) / dist;
-
-          const px = from.x + dx * pPos;
-          const py = from.y + dy * pPos;
-
-          pCtx.beginPath();
-          pCtx.arc(px, py, 4 * window.devicePixelRatio, 0, Math.PI * 2);
-          pCtx.fillStyle = '#ffffff';
-          pCtx.shadowColor = color;
-          pCtx.shadowBlur = 10;
-          pCtx.fill();
-          pCtx.shadowBlur = 0;
-        }
-      }
-
-      // Draw Connections
-      drawConnection(nodeInput, nodeStage1, '#34d399', true, true);
-      drawConnection(nodeStage1, nodeJudge, '#34d399', true, true);
-
-      // Fast Exit Branch
-      drawConnection(nodeJudge, nodeFastExit, '#34d399', isFastPath, isFastPath);
-
-      // Deep Path Branch
-      drawConnection(nodeJudge, nodeDeep1, '#a855f7', !isFastPath, !isFastPath);
-      drawConnection(nodeDeep1, nodeDeep2, '#a855f7', !isFastPath, !isFastPath);
-
-      // Draw Node
-      function drawNode(node, label, sublabel, color, isActive) {
-        const radius = 22 * window.devicePixelRatio;
-        pCtx.beginPath();
-        pCtx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-        pCtx.fillStyle = isActive ? '#0f172a' : '#090d16';
-        pCtx.fill();
-        pCtx.lineWidth = 2.5 * window.devicePixelRatio;
-        pCtx.strokeStyle = isActive ? color : '#334155';
-        pCtx.stroke();
-
-        if (isActive) {
-          pCtx.beginPath();
-          pCtx.arc(node.x, node.y, radius * 0.4, 0, Math.PI * 2);
-          pCtx.fillStyle = color;
-          pCtx.shadowColor = color;
-          pCtx.shadowBlur = 12;
-          pCtx.fill();
-          pCtx.shadowBlur = 0;
-        }
-
-        // Text Labels
-        pCtx.fillStyle = isActive ? '#f8fafc' : '#64748b';
-        pCtx.font = `bold ${10 * window.devicePixelRatio}px Inter, sans-serif`;
-        pCtx.textAlign = 'center';
-        pCtx.fillText(label, node.x, node.y + radius + 14 * window.devicePixelRatio);
-
-        if (sublabel) {
-          pCtx.fillStyle = isActive ? color : '#475569';
-          pCtx.font = `${8 * window.devicePixelRatio}px Inter, sans-serif`;
-          pCtx.fillText(sublabel, node.x, node.y + radius + 25 * window.devicePixelRatio);
-        }
-      }
-
-      drawNode(nodeInput, "Input", "Sensory Data", "#38bdf8", true);
-      drawNode(nodeStage1, "Stage 1", "Fast Extractor", "#34d399", true);
-      drawNode(nodeJudge, "Dynamic Judge", isFastPath ? "C ≥ θ (Exit)" : "C < θ (Route)", "#f59e0b", true);
-      drawNode(nodeFastExit, "Fast Output", isFastPath ? "ACTIVE (Early Exit)" : "Bypassed", "#34d399", isFastPath);
-      drawNode(nodeDeep1, "Deep Module", !isFastPath ? "Active (Computing)" : "Dormant (0W)", "#a855f7", !isFastPath);
-      drawNode(nodeDeep2, "Deep Output", !isFastPath ? "High Confidence" : "Dormant", "#a855f7", !isFastPath);
-    }
-
-    function drawBoundaryGraph() {
-      if (!bCtx || !bCanvas) return;
-      const w = bCanvas.width;
-      const h = bCanvas.height;
-      bCtx.clearRect(0, 0, w, h);
-
-      const padding = 40 * window.devicePixelRatio;
-      const pw = w - padding * 2;
-      const ph = h - padding * 2;
-
-      // Draw Axes
-      bCtx.beginPath();
-      bCtx.moveTo(padding, padding);
-      bCtx.lineTo(padding, h - padding);
-      bCtx.lineTo(w - padding, h - padding);
-      bCtx.strokeStyle = '#334155';
-      bCtx.lineWidth = 1.5 * window.devicePixelRatio;
-      bCtx.stroke();
-
-      // Axis labels
-      bCtx.fillStyle = '#94a3b8';
-      bCtx.font = `${9 * window.devicePixelRatio}px Inter, sans-serif`;
-      bCtx.textAlign = 'right';
-      bCtx.fillText('1.0', padding - 8, padding + 10);
-      bCtx.fillText('Confidence C', padding - 8, padding + ph * 0.5);
-      bCtx.fillText('0.0', padding - 8, h - padding);
-
-      bCtx.textAlign = 'center';
-      bCtx.fillText('Easy', padding + 10, h - padding + 18);
-      bCtx.fillText('Input difficulty / noise D', padding + pw * 0.5, h - padding + 22);
-      bCtx.fillText('Hard', w - padding, h - padding + 18);
-
-      // Current Dynamic Threshold line
-      const thresh = Math.max(0.20, Math.min(0.95, 0.75 - (urgency / 100) * 0.35 - (energy / 100) * 0.25));
-      const threshY = (h - padding) - thresh * ph;
-
-      // Fill Fast Exit Region (above threshold)
-      bCtx.fillStyle = 'rgba(16, 185, 129, 0.12)';
-      bCtx.fillRect(padding, padding, pw, threshY - padding);
-
-      // Fill Deep Path Region (below threshold)
-      bCtx.fillStyle = 'rgba(168, 85, 247, 0.08)';
-      bCtx.fillRect(padding, threshY, pw, (h - padding) - threshY);
-
-      // Threshold Line
-      bCtx.beginPath();
-      bCtx.moveTo(padding, threshY);
-      bCtx.lineTo(w - padding, threshY);
-      bCtx.strokeStyle = '#f59e0b';
-      bCtx.lineWidth = 2 * window.devicePixelRatio;
-      bCtx.setLineDash([4 * window.devicePixelRatio, 4 * window.devicePixelRatio]);
-      bCtx.stroke();
-      bCtx.setLineDash([]);
-
-      bCtx.fillStyle = '#f59e0b';
-      bCtx.font = `bold ${9 * window.devicePixelRatio}px Inter, sans-serif`;
-      bCtx.textAlign = 'left';
-      bCtx.fillText(`Dynamic threshold θ = ${thresh.toFixed(2)}`, padding + 10, threshY - 8);
-
-      // Region texts
-      bCtx.fillStyle = 'rgba(52, 211, 153, 0.6)';
-      bCtx.font = `bold ${11 * window.devicePixelRatio}px Inter, sans-serif`;
-      bCtx.textAlign = 'center';
-      bCtx.fillText('FAST PATH region (early exit)', padding + pw * 0.5, padding + (threshY - padding) * 0.5);
-
-      bCtx.fillStyle = 'rgba(168, 85, 247, 0.6)';
-      bCtx.fillText('DEEP PATH region (extra compute)', padding + pw * 0.5, threshY + ((h - padding) - threshY) * 0.5);
-
-      // Plot Current Sample Position
-      const normAmbiguity = ambiguity / 100;
-      const confidence = Math.max(0.08, Math.min(0.99, (1.0 - Math.pow(normAmbiguity, 1.2) * 0.82)));
-      const sampleX = padding + normAmbiguity * pw;
-      const sampleY = (h - padding) - confidence * ph;
-
-      // Draw point
-      bCtx.beginPath();
-      bCtx.arc(sampleX, sampleY, 8 * window.devicePixelRatio, 0, Math.PI * 2);
-      bCtx.fillStyle = confidence >= thresh ? '#34d399' : '#f43f5e';
-      bCtx.shadowColor = confidence >= thresh ? '#34d399' : '#f43f5e';
-      bCtx.shadowBlur = 12;
-      bCtx.fill();
-      bCtx.shadowBlur = 0;
-      bCtx.strokeStyle = '#ffffff';
-      bCtx.lineWidth = 2 * window.devicePixelRatio;
-      bCtx.stroke();
-
-      bCtx.fillStyle = '#ffffff';
-      bCtx.font = `bold ${9 * window.devicePixelRatio}px Inter, sans-serif`;
-      bCtx.fillText('Current sample', sampleX, sampleY - 14);
-    }
-
-    function switchArchTab(type) {
-      const data = archData[type];
-      const container = document.getElementById('arch-content-card');
-
-      // Update button styling
-      ['static', 'moe', 'djn'].forEach(t => {
-        const btn = document.getElementById(`tab-btn-${t}`);
-        if (t === type) {
-          btn.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition bg-brand-500 text-slate-950 shadow-md";
-        } else {
-          btn.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition text-slate-400 hover:text-white";
-        }
-      });
-
-      // Render content
-      let featuresHtml = data.features.map(f => `
-        <li class="flex items-center gap-2 text-xs sm:text-sm text-slate-300">
-          <svg class="w-4 h-4 text-brand-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-          <span>${f}</span>
-        </li>
-      `).join('');
-
-      container.innerHTML = `
-        <div class="space-y-6">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-            <div>
-              <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold mb-2 border ${data.badgeColor}">
-                ${data.badge}
-              </span>
-              <h3 class="text-xl font-bold text-white">${data.title}</h3>
-            </div>
-          </div>
-          <p class="text-sm sm:text-base text-slate-300 leading-relaxed">
-            ${data.desc}
-          </p>
-          <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800/80">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Key characteristics:</h4>
-            <ul class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              ${featuresHtml}
-            </ul>
-          </div>
-        </div>
-      `;
-    }
-
-    function copyCode() {
-      const codeText = document.querySelector('#code-viewer code').innerText;
-      const textArea = document.createElement("textarea");
-      textArea.value = codeText;
-      textArea.style.position = "fixed";
-      textArea.style.opacity = "0";
-      document.body.appendChild(textArea);
-      textArea.select();
-      
-      try {
-        document.execCommand('copy');
-        showToast();
-      } catch (err) {
-        console.error('Copy failed:', err);
-      }
-      document.body.removeChild(textArea);
-    }
-
-    function showToast() {
-      const toast = document.getElementById('toast');
-      toast.classList.remove('translate-y-20', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
-      setTimeout(() => {
-        toast.classList.add('translate-y-20', 'opacity-0');
-        toast.classList.remove('translate-y-0', 'opacity-100');
-      }, 2500);
-    }
-  </script>
+  <noscript><p class="noscript">Enable JavaScript to use the interactive simulator. The research overview and links remain available.</p></noscript>
 </body>
 </html>

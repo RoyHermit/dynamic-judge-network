@@ -1,6 +1,7 @@
 # Current State — Dynamic Judge Network
 
-Branch: `main` (foundation work merged, fast-forward, commit `d118a69`).
+Branch: `main` (foundation work merged; later documentation commits also
+landed on `main`). Check `git rev-parse --short HEAD` for the current commit.
 
 ## Where things stand
 
@@ -13,10 +14,38 @@ Branch: `main` (foundation work merged, fast-forward, commit `d118a69`).
   `KeyError` on a missing Jev answer, and a storage-writer transaction
   that wasn't rolled back on failure — see the plan file / git log for
   detail, not repeated here).
-- Full test suite: 30/30 passing (`venv/bin/pytest`), `black`/`ruff` clean.
+- At foundation completion, the full test suite had 30/30 passing
+  (`venv/bin/pytest`) and `black`/`ruff` were clean.
 - Research background lives in
-  `docs/context/dynamic-judge-network-context.md` (read this before any
-  new spec — every future spec assumes it).
+  `docs/context/dynamic-judge-network-context.md` and its refinement,
+  `docs/context/djn-research-direction-update.md` (read both before any
+  new spec — the update controls where the original roadmap differs).
+- The browser showcase (`index.html`, `assets/`) is a synthetic,
+  dependency-free explainer of gates, waves, Evidence State, and
+  `HIGH`/`LOW`/`SKIP`. It is not the DJN runtime or an experiment result.
+
+## Research direction update
+
+- The novelty claim is dynamic composition of sparse, multi-stage Judge
+  paths: intermediate evidence decides what to evaluate next and when
+  to stop. Jev-as-a-Judge, typed decisions, confidence escalation,
+  shared-state batching, and deterministic filtering are prior patterns.
+- Plan deterministic features/gates before uncertain Judge questions.
+  Keep Jev replaceable. Independent Judges may run in Activation Waves;
+  shared-state batching is an executor optimization to measure, not a
+  Judge API requirement.
+- Treat Evidence State and `HIGH`/`LOW` direction versus `ACT`/`SKIP`
+  actionability as separate experimental concepts. Missing evidence is
+  explicit and never silently safe. Keep raw evidence in durable logs.
+- Distinguish attempted questions, fetched answers, activated Judges,
+  and used evidence. The existing DB can derive attempted/answered counts
+  and has nullable `was_used`, but foundation code does not record
+  activation, usage decisions, waves, or Evidence State yet.
+- Use the refined baseline labels: A single Judge; B single Judge plus
+  confidence escalation; C fixed multi-Judge; D diverse fixed
+  multi-Judge; E dynamic DJN; F frontier LLM reference. Earlier A–E
+  labels remain only in historical specs/commits. Ablate one mechanism
+  at a time; do not assign later experiment numbers until their specs exist.
 
 ## Confirmed decisions (do not re-litigate without new information)
 
@@ -40,17 +69,25 @@ Branch: `main` (foundation work merged, fast-forward, commit `d118a69`).
 
 ## Next step
 
-Not started: brainstorm + spec the first Ablation Test experiment per
-context doc §15 — **Experiment 1: Fixed Judges + Average** (a Baseline B
-"diverse fixed ensemble" using the now-built `Judge`/`JevStageExecutor`
-foundation, no dynamic activation yet). Concrete Judge implementations
-(Trend, Momentum, etc., under `src/judges/definitions/`) and the
-benchmark data pipeline (`src/data/`, spec §10, still just a stub) are
-both prerequisites this next spec needs to resolve.
+Not started: brainstorm + spec **Experiment 1: Fixed Judges + Average**
+using the built `Judge`/`JevStageExecutor` foundation, without dynamic
+activation. Resolve its exact fixed baseline comparisons under the new
+A–F taxonomy, define the High/Low ground truth and benchmark data
+pipeline (`src/data/`, still a stub), and specify concrete Judge roles
+(`src/judges/definitions/`). Before implementation, pin down the
+hypothesis, baseline, metrics, ablation, and logs, including attempts,
+fetched answers, latency, coverage, calibration, and `SKIP`. The
+confidence-escalation cascade (B) and diverse fixed roles (D) need
+explicit experiment boundaries; do not silently bundle them into the
+simple fixed-average baseline.
 
 ## Known open items (intentionally deferred, not blockers)
 
-- Benchmark data pipeline (State shape, HIGH/LOW data source) — separate
-  future spec (spec §10).
+- Benchmark data pipeline (State shape, HIGH/LOW data source) — next
+  experiment spec must resolve its interface and ground truth; it may
+  warrant a separate implementation spec (foundation spec §10).
 - Graph/aggregation/runtime/experiments/metrics/escalation are all still
   stub `README.md` files under `src/` — untouched by design (spec §10).
+- No schema or runtime changes were made for the research update. Wave,
+  Evidence State, activated/used logging, and actionability semantics
+  remain future design work.

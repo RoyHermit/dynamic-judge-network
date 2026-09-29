@@ -1,10 +1,18 @@
 # Dynamic Judge Network — Research & Development Context
 
-> Status: Concept / PoC planning  
+> Status: Foundation implemented; network mechanisms remain research plans
 > Primary development agents: Claude Code / Codex  
 > Initial benchmark: High & Low directional decision task  
 > Core implementation candidate: Jev-based lightweight judges  
 > Date: 2026-09-27
+
+> **Research update (2026-09-29):** Read this document together with
+> [DJN Research Direction Update](djn-research-direction-update.md). The update
+> refines the novelty boundary, baseline labels, execution model, metrics,
+> and ablation order for future work. Sections 12 and 15 below reflect the
+> revised labels and progression; the update has the detailed rationale.
+> The approved foundation spec and its implementation remain historical
+> records of the scope completed at that time.
 
 ---
 
@@ -516,68 +524,48 @@ coverage = 13%
 
 ---
 
-## 12. 初期比較対象
+## 12. Baselines and reference
 
-最低限、以下を同一データで比較する。
+Compare configurations on the same data and evaluation protocol. These
+labels follow [Research Direction Update §19](djn-research-direction-update.md#19-refined-baselines).
 
 ### Baseline A — Single Judge
 
-```text
-Input -> Jev -> Decision
-```
+`Input -> one Judge -> decision`.
 
-### Baseline B — Fixed Parallel Ensemble
+### Baseline B — Single Judge + Confidence Escalation
 
-```text
-        +-> J1
-        +-> J2
-Input --+-> J3
-        +-> ...
-        +-> JN
-             |
-             v
-          Average
-```
+Start with one Judge and escalate only when its confidence is
+insufficient; the escalation target and threshold belong in that
+baseline's spec. This is a cascade comparator for DJN's multi-Judge
+routing claim.
 
-### Baseline C — Diverse Fixed Ensemble
+### Baseline C — Fixed Multi-Judge
 
-異なる役割を与えたJudgeを全実行する。
+Execute the same selected Judges for every input and use simple
+aggregation, starting with an average. This includes the fixed parallel
+ensemble originally called Baseline B.
 
-```text
-Trend
-Momentum
-Reversion
-Risk
-Counter-evidence
-...
-      |
-      v
-Weighted Aggregation
-```
+### Baseline D — Diverse Fixed Multi-Judge
 
-### Experimental D — Dynamic Judge Network
+Execute every specialist role on every input, then aggregate. The
+specialists should differ in failure mode, not only prompt wording. This
+was originally called Baseline C.
 
-```text
-Initial Judges
-      |
-      v
-dynamic activation
-      |
-      v
-excitation / inhibition
-      |
-      v
-early stopping
-      |
-      v
-Decision
-```
+### Experimental E — Dynamic Judge Network
 
-### Reference E — Frontier LLM
+Use intermediate evidence to select later Judges, counter-evidence, and
+stopping paths. Activation Waves and compact Evidence State are separate
+mechanisms to test, not properties to assume every DJN run needs.
 
-高性能LLMによる同一タスクの判断を参考値として測定する。
+### Reference F — Frontier LLM
 
-Frontier LLMに勝つこと自体を初期目標にはしない。
+Evaluate the same task as a quality, cost, and latency reference. Beating
+the frontier model is not an initial success criterion.
+
+Experiment 1 begins with fixed Judges and averaging. Its spec will
+define the exact A/C comparisons; B and D need their own explicit
+comparison boundaries before results are attributed to a mechanism.
 
 ---
 
@@ -597,6 +585,7 @@ Frontier LLMに勝つこと自体を初期目標にはしない。
 - LOW accuracy
 - SKIP rate
 - Coverage
+- Accuracy at coverage
 
 ### Performance
 
@@ -604,10 +593,10 @@ Frontier LLMに勝つこと自体を初期目標にはしない。
 - P50 latency
 - P95 latency
 - P99 latency
-- Judge latency
-- executed Judge count
-- graph depth
-- parallel stage count
+- provider, routing, aggregation, storage, and wave latency
+- attempted, fetched, activated, and used Judge counts
+- maximum graph depth
+- wave count
 - early-stop rate
 
 ### Diversity
@@ -620,10 +609,19 @@ Frontier LLMに勝つこと自体を初期目標にはしない。
 
 ### Resource
 
-- model calls
+- provider request count
+- questions per request
+- input size
 - token usage if applicable
 - CPU/GPU usage where practical
 - API cost where applicable
+
+Attempted questions, fetched answers, activated Judges, and used evidence
+are distinct. See [Research Direction Update](djn-research-direction-update.md)
+§§9–13 and 21 for the proposed measurement model. The current foundation
+database records data from which attempted/answered counts can be derived
+and has a nullable `was_used` field, but no independent activated flag or
+wave/evidence-state records yet.
 
 ---
 
@@ -644,14 +642,27 @@ task_type
 judge_id
 judge_version
 judge_prompt_or_definition
-judge_output
+raw_provider_answer
+interpreted_judge_output
 judge_confidence
 judge_latency
+
+wave_id
+wave_index
+requested_judges
+fetched_judges
+activated_judges
+used_judges
+evidence_state_before
+evidence_state_after
 
 activation_source
 activation_reason
 graph_depth
 parent_judge
+stop_evaluated
+stop_result
+stop_reason
 
 aggregator_version
 aggregate_score
@@ -662,62 +673,53 @@ ground_truth
 is_correct
 
 total_latency
-executed_judge_count
+attempted_judge_count
+fetched_judge_count
+activated_judge_count
+used_judge_count
+provider_request_count
+questions_per_request
 early_stopped
 ```
 
 可能な限り、後から同一条件を再実行できる形式にする。
 
+Also record network state around each wave, activation scores, consensus,
+disagreement, uncertainty, input size, provider usage, and
+provider/routing/aggregation/storage latency separately. The full field
+list is in [Research Direction Update §21](djn-research-direction-update.md#21-logging-requirements).
+These are future logging requirements, not a description of the current
+foundation schema.
+
 ---
 
 ## 15. Ablation Test
 
-生物的要素をまとめて追加してはいけない。
-
-どの機構が効果を生んだのか判別できなくなるためである。
-
-以下の順序で段階的に評価する。
-
-```text
-Experiment 1
-Fixed Judges + Average
-
-Experiment 2
-+ Diverse Judge Roles
-
-Experiment 3
-+ Dynamic Activation
-
-Experiment 4
-+ Excitation
-
-Experiment 5
-+ Inhibition
-
-Experiment 6
-+ Counter-evidence
-
-Experiment 7
-+ Early Stopping
-
-Experiment 8
-+ Learned Edge Weights
-
-Experiment 9
-+ Memory / Plasticity
-```
-
-各実験で、
+Experiment 1 is **Fixed Judges + Average**. Add one mechanism at a time
+after the simple and diverse fixed baselines; otherwise a gain cannot be
+attributed to a particular mechanism. The current candidate sequence,
+refined in [Research Direction Update §20](djn-research-direction-update.md#20-ablations),
+is:
 
 ```text
-ΔAccuracy
-ΔLatency
-ΔExecutedJudges
-ΔCoverage
-ΔErrorCorrelation
+fixed execution -> diverse fixed roles
+-> deterministic dynamic activation -> Activation Waves
+-> counter-evidence -> inhibition -> early stopping
+-> Evidence State compression -> deterministic pre-gates
+-> speculative batching -> learned routing -> path memory/plasticity
 ```
 
-を比較する。
+Feature computation may be deterministic from the start; the
+deterministic pre-gate *ablation* tests whether skipping model work before
+Wave 0 improves the measured frontier. Excitation and learned edge
+weights remain future candidates rather than being bundled into the
+first dynamic-routing result. Later experiment numbers belong in their
+own specs, where each has a hypothesis, baseline, metric, ablation, and
+required logs.
+
+Compare changes in accuracy, latency, attempted/fetched/activated/used
+Judge counts, coverage, error correlation, wave count, and cost under the
+same data protocol.
 
 ---
 
@@ -744,33 +746,41 @@ Experiment 9
 
 まずJudge Networkそのものの価値を検証する。
 
+Keep directional aggregation (`HIGH` versus `LOW`) separate from the
+absolute actionability gate (`ACT` versus `SKIP`). A directional preference
+alone does not justify an action, and missing evidence must be explicit.
+
 ---
 
 ## 17. Judge Graph
 
-初期実装では単純なdirected weighted graphでよい。
+Start with inspectable deterministic routing. A node can be a
+deterministic gate, rule, classifier, provider-backed Judge, numerical
+model, or tool; a graph of only AI Judges is not required. Shared-state
+batching belongs to an executor and must not change the abstract Judge
+contract.
 
 概念例:
 
 ```text
 Node:
-    Judge
+    kind: deterministic_gate | Judge | classifier | tool
+    input/output contract
 
 Edge:
     source
     target
-    weight
-    type:
-        excitatory
-        inhibitory
+    activation condition
+    optional type: excitatory | inhibitory
 
 Runtime State:
-    activation
-    confidence
-    executed
+    Evidence State
+    attempted / fetched / activated / used
+    wave index and stop reason
 ```
 
-概念的には、
+Learned edge weights and activation-score formulas are later candidates,
+after deterministic routing has been measured. An illustrative form is:
 
 ```text
 activation_j =
@@ -987,6 +997,10 @@ Claude Code / Codexは、本プロジェクトを単なるアプリケーショ�
 
 を考慮する。
 
+Before adding a mechanism, state its hypothesis, baseline, metric,
+ablation, and required logs. Keep raw observations durable when a later
+wave receives compressed Evidence State.
+
 過度な抽象化は避ける。
 
 PoC段階では、
@@ -1095,49 +1109,40 @@ Early Stoppingは精度を大きく損なわずレイテンシを削減できる
 
 Accuracy-Coverage trade-offにおいて、単一モデルより優れた領域を形成できるか？
 
+### RQ9
+
+How much marginal accuracy or calibration does each additional
+Activation Wave contribute relative to its latency and provider cost?
+
+### RQ10
+
+When later Judges receive compact Evidence State instead of raw state,
+what changes in accuracy, calibration, input size, and latency?
+
+### RQ11
+
+Does shared-state speculative batching outperform sparse remote
+execution after attempted, fetched, activated, and used counts are
+reported separately?
+
 ---
 
-## 26. 成功条件
+## 26. Success criteria
 
-初期研究では「Frontier LLMを超える」ことを成功条件にしない。
+Beating a frontier LLM is not an initial success criterion. Compare the
+single Judge, fixed ensembles, and dynamic network on the same samples
+and report accuracy at coverage, calibration, `SKIP` rate, latency, and
+provider cost. A dynamic configuration is useful if it improves the
+measured trade-off, even when one metric alone is not best.
 
-例えば以下のような結果でも十分に有意義である。
+Judge-count savings require a precise denominator. Report attempted
+questions and fetched answers as resource measures, and activated and
+used Judges as routing measures. A path that uses few Judges but fetches
+an entire speculative batch has not established a provider-cost saving.
 
-```text
-Single Judge
-Accuracy: 55%
-Latency: 20 ms
-
-Fixed 20-Judge Ensemble
-Accuracy: 62%
-Latency: 80 ms
-Judges: 20
-
-Dynamic Judge Network
-Accuracy: 61.8%
-Latency: 38 ms
-Judges: 5.2 avg
-```
-
-この場合、
-
-- 精度をほぼ維持
-- latencyを半減
-- Judge実行数を約1/4
-
-という結果になり、動的推論経路の有効性を示せる。
-
-逆に性能改善が得られなかった場合も重要な結果である。
-
-特に、
-
-- Judge diversity不足
-- error correlation
-- activation overhead
-- graph depth
-- aggregation failure
-
-のどこが原因か分析できるログを残す。
+A negative result is also informative when logs can separate lack of
+Judge diversity, correlated errors, routing overhead, excess wave depth,
+Evidence State information loss, and aggregation failure.
 
 ---
 
@@ -1149,35 +1154,34 @@ Judges: 5.2 avg
 
 である。
 
-概念的には、
+The updated target loop is:
 
 ```text
 Stimulus
    |
    v
-Sparse activation
+Deterministic facts and validity gates
    |
    v
-Local judgments
+Activation Wave 0 (independent Judges)
    |
    v
-Excitation / inhibition
+Compact Evidence State
    |
    v
-Counter-evidence
+Controller: stop, activate, or inhibit
+   |
+   +---- more evidence ----> later wave / counter-evidence
+   |                           |
+   |                           +----> Evidence State
+   v
+Direction + actionability gate
    |
    v
-Consensus formation
-   |
-   +---- uncertain ----> more computation
-   |
-   +---- confident ----> decision
+HIGH / LOW / SKIP
    |
    v
-Outcome
-   |
-   v
-Strengthen / weaken paths
+Outcome and measurement (future path learning)
 ```
 
 というループを形成する。

@@ -19,19 +19,18 @@ at the end for the current, honest line between the two.
 ## Interactive showcase
 
 [**Launch the interactive showcase**](https://royhermit.github.io/dynamic-judge-network/)
-([`index.html`](index.html)) is a self-contained browser
-demo of the *intuition* behind dynamic routing: a confidence score is
-compared against an adaptive threshold θ to decide between an early exit
-and a deeper path, and the simulator lets you vary ambiguity, urgency,
-and an energy constraint to see the route change. It also compares that
-idea against a static dense model and a standard MoE.
+([`index.html`](index.html)) is a static, dependency-free browser
+explainer for the current DJN research direction. Its synthetic High/Low
+scenario lets you change directional evidence, reversal risk, noise,
+data completeness, wave budget, and speculative fetching. It shows the
+deterministic gate, Activation Waves, Evidence State, counter-evidence,
+`HIGH`/`LOW`/`SKIP` outcome, and requested/fetched/activated/used counts.
 
-It is an explanatory illustration, not this project's implementation or
-a result: it frames routing as a single network exiting early at a
-confidence threshold, whereas the architecture below routes across
-separate Judges and is not built on PyTorch. The pseudo-code shown in the
-demo is illustrative only, and nothing in it has been measured on this
-project's data (see "Status" and "Results").
+The simulator uses hand-written teaching rules in
+[`assets/simulator.mjs`](assets/simulator.mjs). It makes no Jev or market
+data calls, and its scores and question counts are not measured accuracy,
+latency, or cost results. The actual network controller and benchmark
+pipeline are still future work (see "Status" and "Results").
 
 ## The problem
 
@@ -55,14 +54,11 @@ classifier, a rule engine, or a numerical model.
 
 ## Central hypothesis
 
-> Activating only the Judges a given input needs, and combining their
-> disagreement rather than averaging it away, can match or approach the
-> accuracy of a large ensemble while *using* a fraction of its Judges and
-> latency — and the network's routing itself can improve with
-> experience. ("Using" here means activated/used, not merely fetched —
-> see "The target reasoning loop" for why that distinction matters, since
-> speculative fan-out can fetch a Judge's answer without it ending up
-> used.)
+> Can diverse lightweight Judges, deterministic gates, compact
+> intermediate evidence, and input-dependent Activation Waves decide
+> *which* judgment is useful next and *when* to stop, improving the
+> accuracy–latency–cost–coverage trade-off over a single Judge or a
+> fixed multi-Judge ensemble?
 
 This is a hypothesis to be measured, not a design assumed to work. The
 project's guiding rule is **architecture follows evidence**: every
@@ -73,6 +69,12 @@ in this README describing a mechanism the project has not built yet
 (see "Status") should be read as a result; it is the plan the "Results"
 section will eventually be filled in against.
 
+The novelty being tested is the *dynamic composition of a reasoning
+path*. Jev-as-a-Judge, typed decisions, confidence escalation,
+shared-state batching, and deterministic filters are useful prior
+patterns, not novelty claims. The [research direction update](docs/context/djn-research-direction-update.md)
+sets out that boundary and the refined experimental requirements.
+
 ## The target reasoning loop
 
 This is the shape the finished network is meant to have — most of it is
@@ -82,37 +84,36 @@ unrelated list:
 
 ```mermaid
 flowchart TD
-    A(["Stimulus (input)"]) --> B["Sparse activation<br/>(an initial set of Judges is asked)"]
-    B --> C["Local judgments<br/>(each Judge returns a value + confidence)"]
-    C --> D["Excitation / inhibition<br/>(adjusts which Judges are more or less likely to fire next)"]
-    D --> E["Counter-evidence<br/>(a Judge is deliberately fired to argue<br/>against the currently favored direction)"]
-    E --> F{"Consensus<br/>formation"}
-    F -- uncertain --> G["Fire more Judges,<br/>deepen the graph"]
-    G --> C
-    F -- confident --> H["Stop and decide"]
-    H --> I(["Outcome"])
-    I -. "compare against ground truth;<br/>strengthen paths that were right,<br/>weaken paths that were wrong" .-> D
+    A(["Input"]) --> B["Compute exact features<br/>and deterministic gates"]
+    B -- insufficient or invalid --> S(["SKIP"])
+    B -- valid --> C["Activation Wave 0<br/>independent Judges"]
+    C --> D["Compact Evidence State"]
+    D --> E{"Controller:<br/>route, inhibit, or stop"}
+    E -- more evidence needed --> F["Later wave<br/>specialists or counter-evidence"]
+    F --> D
+    E -- enough evidence or no useful next step --> G["Direction + actionability gate"]
+    G --> H(["HIGH / LOW / SKIP"])
 ```
 
-Two distinctions this loop depends on, both already reflected in the
-storage schema even though nothing writes to the relevant columns yet
-(see Architecture):
+Three distinctions matter when testing this loop:
 
-- **Fetched vs. used.** Because of Jev's speculative fan-out (below), a
-  Judge's question can be *asked* in the same batch as everything else
-  even before the network has decided the Judge is "activated" — the
-  routing logic decides afterward whether to *use* that answer or discard
-  it. A fetched-but-discarded Judge still incurred a cost; an activated
-  Judge is one whose answer was used. Reported Judge counts should
-  specify which of these they mean.
+- **Attempted, fetched, activated, and used.** An attempted question may
+  fail before returning an answer. A fetched Judge returned an answer
+  and incurred provider work; an activated Judge was placed on the
+  controller's reasoning path; a used Judge materially affected routing,
+  aggregation, or the final decision. These sets can differ when
+  questions are batched speculatively. The foundation database records
+  attempts and fetched answers and has a nullable `was_used` field;
+  activation and use decisions are not written yet (see Architecture).
 - **Depth vs. breadth.** Judges with no dependency on each other can be
-  batched into one stage and answered in parallel; latency is expected
-  to track the number of *sequential* stages far more than it tracks
-  total Judge count — a network that fires many Judges across few
-  stages would, in principle, be expected to run faster than one that
-  fires fewer Judges across many stages. This is one of the hypotheses
-  Experiment 1 onward exists to check, not something already observed
-  on this project's own data.
+  batched into an Activation Wave. When they share state, a backend may
+  answer the wave in one request. This is an executor optimization, not
+  part of the abstract Judge API. Wave count and graph depth must be
+  measured separately from Judge count and provider request count.
+- **Direction vs. actionability.** Choosing `HIGH` over `LOW` does not
+  establish that either is safe to act on. Missing data, weak evidence,
+  disagreement, or a low actionability score can lead to `SKIP`; missing
+  evidence must never silently mean safe or false.
 
 ## Distinction from a fixed ensemble
 
@@ -197,16 +198,22 @@ hypothesis is being tested.
 
 ## Research methodology
 
-New mechanisms are added to the network one at a time, each measured
-against the version before it, following a fixed experiment sequence
-(fixed Judges → diverse roles → dynamic activation → excitation →
-inhibition → counter-evidence → early stopping → learned weights →
-memory/plasticity). This project's planned **baseline-first** discipline
-means an experimental mechanism will always be compared against a single
-Judge, a fixed parallel ensemble, and a diverse fixed ensemble, plus a
-frontier LLM as a reference point (not a bar the early stages are trying
-to clear) — none of that comparison harness is built yet (see Status);
-it is what the experiment-runner spec will implement.
+New mechanisms are added one at a time and measured against the preceding
+configuration. The planned progression starts with fixed execution and
+diverse fixed roles, then deterministic dynamic activation, Activation
+Waves, counter-evidence, inhibition, early stopping, Evidence State
+compression, deterministic pre-gates, and speculative batching. Learned
+routing and path memory follow only if measurements justify them. The
+initial High/Low benchmark remains one task; a general semantic router
+is future work.
+
+The refined comparators are **A** single Judge, **B** single Judge with
+confidence escalation, **C** fixed multi-Judge, **D** diverse fixed
+multi-Judge, **E** Dynamic Judge Network, and **F** frontier LLM reference.
+The last is a quality/cost/latency reference, not an early accuracy target.
+Experiment 1 still starts with fixed Judges and simple averaging; later
+specs will assign each additional comparison and mechanism to a discrete
+ablation. None of the comparison harness is built yet (see Status).
 
 Results will be read as an **accuracy–coverage curve** rather than a
 single accuracy number: raising the confidence threshold for a decision
@@ -283,14 +290,22 @@ Run the tests:
 venv/bin/pytest
 ```
 
+The standalone browser simulator's decision rules can also be checked
+with Node.js (no packages to install):
+
+```bash
+node tests/showcase.test.mjs
+```
+
 ## Status
 
 Foundation stage only. Built: the Judge/executor/storage contract,
 `JevStageExecutor`, and `sqlite3` storage for provider calls and raw/
 interpreted Judge output. Not yet built — still stub `README.md` files
 under `src/` — everything that makes the network *dynamic*: the
-activation graph, excitation/inhibition, early stopping, the aggregator,
-the experiment runner and its baselines, the benchmark data pipeline, and
+activation graph, Activation Waves, Evidence State, deterministic
+pre-gates, excitation/inhibition, early stopping, the aggregator, the
+experiment runner and its baselines, the benchmark data pipeline, and
 the metrics/diversity layer. Concretely, no concrete Judge (Trend,
 Momentum, etc.) has been implemented yet either.
 
@@ -299,20 +314,21 @@ Momentum, etc.) has been implemented yet either.
 Not yet available — no experiment has been run end-to-end. This section
 will fill in incrementally as the Ablation Test sequence progresses:
 
-- **After Experiment 1** (fixed Judges + average — Baseline A single
-  Judge, Baseline B fixed parallel ensemble, Baseline C diverse fixed
-  ensemble): an accuracy–coverage table/curve at several confidence
-  thresholds, and latency/attempted-vs-answered-Judge-count comparisons
-  across those three baselines. No *dynamic* activation exists yet at
-  this stage, so there is no Dynamic Judge Network configuration to
-  compare against — this experiment establishes the baseline numbers
-  everything after it is measured against.
-- **From Experiment 3 onward** (once dynamic activation exists): the
-  same accuracy–coverage/latency/cost comparison repeated with a Dynamic
-  Judge Network configuration included, reporting attempted, answered
-  (fetched a Jev response), and used (actually informed the decision)
-  Judge counts separately — see "The target reasoning loop" above for
-  why those three numbers can differ.
+- **After Experiment 1** (fixed Judges + average): an accuracy–coverage
+  table/curve at several decision thresholds, calibration, `SKIP` rate,
+  latency, attempted question count, fetched answer count, request count,
+  and questions per request for the fixed configurations specified by
+  that experiment.
+  There is no dynamic activation at this stage.
+- **In later baseline studies:** compare the single-Judge confidence
+  escalation cascade (B) and diverse fixed roles (D) against single
+  Judge (A) and fixed multi-Judge (C) under the same data and evaluation
+  protocol. Their exact experiment boundaries belong in future specs.
+- **Once dynamic activation exists:** repeat the quality, coverage,
+  latency, and cost comparison with configuration E. Report attempted,
+  fetched, activated, and used Judge counts separately, along with wave
+  count, graph depth, and stop reasons. Test full raw state against
+  compact Evidence State as its own ablation.
 - Whatever cost/latency ratio Jev's speculative fan-out is found to
   produce on this project's own data (see Architecture above).
 
@@ -362,5 +378,6 @@ Sources: [Sakana Fugu](https://sakana.ai/fugu-beta/) ·
 
 ## Further reading
 
-- [`docs/context/dynamic-judge-network-context.md`](docs/context/dynamic-judge-network-context.md) — the full research context this README summarizes, including the complete research-question list, the per-experiment ablation table, and every required metric/log field.
+- [`docs/context/dynamic-judge-network-context.md`](docs/context/dynamic-judge-network-context.md) — the research context and question list, with revised baseline labels and ablation progression.
+- [`docs/context/djn-research-direction-update.md`](docs/context/djn-research-direction-update.md) — the current research refinement, novelty boundary, baseline taxonomy, and proposed future logging requirements.
 - [`docs/superpowers/specs/`](docs/superpowers/specs/) — approved specs and design history.
