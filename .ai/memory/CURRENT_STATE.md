@@ -22,7 +22,10 @@ landed on `main`). Check `git rev-parse --short HEAD` for the current commit.
   new spec — the update controls where the original roadmap differs).
 - The browser showcase (`index.html`, `assets/`) is a synthetic,
   dependency-free explainer of gates, waves, Evidence State, and
-  `HIGH`/`LOW`/`SKIP`. It is not the DJN runtime or an experiment result.
+  `HIGH`/`LOW`/`SKIP`. The checked-in HTML embeds its assets so a single
+  downloaded file works locally; regenerate it with
+  `node scripts/build-showcase.mjs` after editing `assets/`. It is not
+  the DJN runtime or an experiment result.
 
 ## Research direction update
 

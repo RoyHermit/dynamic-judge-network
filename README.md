@@ -19,7 +19,7 @@ at the end for the current, honest line between the two.
 ## Interactive showcase
 
 [**Launch the interactive showcase**](https://royhermit.github.io/dynamic-judge-network/)
-([`index.html`](index.html)) is a static, dependency-free browser
+([`index.html`](index.html)) is a standalone, dependency-free browser
 explainer for the current DJN research direction. Its synthetic High/Low
 scenario lets you change directional evidence, reversal risk, noise,
 data completeness, wave budget, and speculative fetching. It shows the
@@ -31,6 +31,15 @@ The simulator uses hand-written teaching rules in
 data calls, and its scores and question counts are not measured accuracy,
 latency, or cost results. The actual network controller and benchmark
 pipeline are still future work (see "Status" and "Results").
+
+The published `index.html` embeds its styles and script, so a downloaded
+copy works when opened directly in a browser. When editing the source files
+under `assets/`, regenerate and check that standalone file with:
+
+```bash
+node scripts/build-showcase.mjs
+node scripts/build-showcase.mjs --check
+```
 
 ## The problem
 
@@ -290,11 +299,12 @@ Run the tests:
 venv/bin/pytest
 ```
 
-The standalone browser simulator's decision rules can also be checked
-with Node.js (no packages to install):
+The standalone browser simulator can also be checked with Node.js (no
+packages to install):
 
 ```bash
 node tests/showcase.test.mjs
+node tests/showcase-standalone.test.mjs
 ```
 
 ## Status

@@ -6,8 +6,332 @@
   <meta name="color-scheme" content="dark">
   <meta name="description" content="An interactive research explainer for Dynamic Judge Network: deterministic gates, Activation Waves, Evidence State, counter-evidence, and HIGH/LOW/SKIP decisions.">
   <title>Dynamic Judge Network — Follow the evidence</title>
-  <link rel="stylesheet" href="assets/site.css">
-  <script type="module" src="assets/app.mjs"></script>
+  <!-- INLINE_STYLES_START -->
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #080d15;
+  --surface: #101824;
+  --surface-2: #141f2e;
+  --surface-3: #192536;
+  --line: #293748;
+  --line-soft: #213041;
+  --text: #f3f6f8;
+  --muted: #a6b5c4;
+  --faint: #74889c;
+  --mint: #8ff2c7;
+  --mint-deep: #36bf93;
+  --cyan: #8bdff1;
+  --amber: #f5c879;
+  --rose: #f5a1a8;
+  --radius: 22px;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+section[id] { scroll-margin-top: 88px; }
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 79% 6%, rgba(52, 155, 136, .13), transparent 30%),
+    radial-gradient(circle at 13% 30%, rgba(50, 111, 159, .09), transparent 31%),
+    var(--bg);
+}
+a { color: inherit; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--mint); outline-offset: 4px; }
+::selection { background: var(--mint); color: var(--bg); }
+.shell { width: min(100% - 48px, 1240px); margin-inline: auto; }
+.skip-link {
+  position: absolute; top: -100px; left: 16px; z-index: 100;
+  padding: 12px 16px; background: var(--mint); color: var(--bg); border-radius: 10px;
+}
+.skip-link:focus { top: 12px; }
+.site-header {
+  position: sticky; top: 0; z-index: 30; backdrop-filter: blur(18px);
+  background: rgba(8, 13, 21, .83); border-bottom: 1px solid rgba(136, 165, 184, .15);
+}
+.header-inner { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; white-space: nowrap; }
+.brand-mark {
+  display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px;
+  background: var(--mint); color: #092018; font-size: 14px; font-weight: 900; letter-spacing: -.08em;
+  box-shadow: 0 8px 30px rgba(76, 216, 167, .15);
+}
+.brand-dot { color: #327d65; }
+.brand-name { font-size: 15px; font-weight: 750; letter-spacing: -.025em; }
+.header-nav { display: flex; align-items: center; gap: 28px; }
+.header-nav a, .header-repo { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 650; }
+.header-nav a:hover, .header-repo:hover { color: var(--mint); }
+.header-repo { border: 1px solid var(--line); border-radius: 999px; padding: 10px 14px; white-space: nowrap; }
+.header-repo span { margin-left: 7px; color: var(--mint); }
+
+.hero { display: grid; grid-template-columns: 1.12fr .88fr; gap: 44px; align-items: center; padding-block: 104px 100px; }
+.eyebrow, .kicker, .panel-index, .section-divider, .art-index, .sim-label, .stage-step, .roadmap-index {
+  font-size: 11px; letter-spacing: .14em; font-weight: 800; text-transform: uppercase;
+}
+.eyebrow { display: flex; align-items: center; gap: 10px; color: var(--mint); }
+.eyebrow-pulse, .sim-label-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 18px var(--mint); }
+h1, h2, h3, p { margin-top: 0; }
+h1 { max-width: 760px; margin: 25px 0 22px; font-size: clamp(46px, 5.7vw, 79px); line-height: 1.04; letter-spacing: -.065em; font-weight: 790; }
+h1 em { font-style: normal; color: var(--mint); }
+.hero-lead { max-width: 650px; color: #c6d2dc; font-size: clamp(16px, 1.45vw, 19px); line-height: 1.7; }
+.hero-note { max-width: 625px; margin: 19px 0 0; padding-left: 15px; border-left: 2px solid var(--mint-deep); color: var(--muted); font-size: 13px; line-height: 1.65; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 17px; padding: 13px 18px;
+  border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 750;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+.button:hover { transform: translateY(-2px); }
+.button-primary { background: var(--mint); color: #082018; box-shadow: 0 14px 35px rgba(80, 221, 172, .13); }
+.button-primary:hover { background: #b2ffd9; }
+.button-quiet { border: 1px solid var(--line); background: rgba(16, 24, 36, .7); }
+.button-quiet:hover { border-color: var(--mint-deep); }
+
+.hero-art {
+  position: relative; min-height: 465px; isolation: isolate; border: 1px solid var(--line);
+  border-radius: 30px; overflow: hidden;
+  background: radial-gradient(circle at 50% 45%, rgba(72, 184, 147, .16), transparent 45%), #0d1621;
+  box-shadow: 0 35px 95px rgba(0, 0, 0, .22);
+}
+.hero-art::before {
+  content: ""; position: absolute; inset: 0; opacity: .25;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 33px 33px; mask-image: linear-gradient(to bottom, #000, transparent 100%);
+}
+.hero-art::after { content: ""; position: absolute; left: 50%; top: 17%; bottom: 19%; width: 1px; background: linear-gradient(transparent, var(--mint-deep), transparent); z-index: -1; }
+.art-orbit { position: absolute; border: 1px solid rgba(143, 242, 199, .15); border-radius: 50%; left: 50%; top: 47%; transform: translate(-50%, -50%); }
+.orbit-one { width: 345px; height: 345px; }
+.orbit-two { width: 530px; height: 530px; }
+.art-node {
+  position: absolute; display: flex; flex-direction: column; gap: 5px; min-width: 140px;
+  padding: 11px 14px; border: 1px solid #436858; border-radius: 12px;
+  background: rgba(20, 38, 39, .94); box-shadow: 0 12px 30px rgba(0, 0, 0, .22);
+}
+.art-node strong { font-size: 13px; letter-spacing: -.02em; }
+.art-index { color: var(--mint); font-size: 9px; }
+.art-input { left: 7%; top: 11%; }
+.art-gate { right: 7%; top: 16%; }
+.art-wave { left: 14%; top: 39%; }
+.art-evidence { right: 8%; top: 46%; border-color: #568299; background: rgba(21, 42, 54, .96); }
+.art-evidence .art-index { color: var(--cyan); }
+.art-route { left: 9%; top: 70%; border-color: #9a8158; background: rgba(45, 35, 29, .96); }
+.art-route .art-index { color: var(--amber); }
+.art-outcome { right: 6%; top: 73%; border-color: var(--mint-deep); }
+.art-caption { position: absolute; bottom: 15px; left: 22px; right: 22px; margin: 0; color: var(--faint); font-size: 11px; text-align: center; }
+
+.section-divider { display: flex; justify-content: space-between; gap: 16px; padding: 16px 0; border-block: 1px solid var(--line); color: var(--faint); }
+.section-divider span:first-child { color: var(--mint); }
+.intro { padding-block: 95px 115px; }
+.kicker { margin-bottom: 15px; color: var(--mint); }
+.section-heading h2, .sim-heading h2, .research-layout h2 { margin: 0 0 16px; font-size: clamp(35px, 4vw, 55px); line-height: 1.08; letter-spacing: -.055em; font-weight: 760; }
+.section-heading p:last-child, .sim-heading p:last-child { max-width: 690px; margin-bottom: 0; color: var(--muted); line-height: 1.65; }
+.principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; }
+.principle { min-height: 220px; padding: 26px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(150deg, #152231, #101824); }
+.principle-number { color: var(--mint); font-size: 11px; letter-spacing: .14em; font-weight: 800; }
+.principle h3 { margin: 40px 0 10px; font-size: 22px; letter-spacing: -.035em; }
+.principle p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 14px; }
+
+.simulator-section { border-block: 1px solid var(--line); padding-block: 100px 110px; background: #0c131d; }
+.sim-heading { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 34px; }
+.sim-heading h2 { max-width: 760px; }
+.sim-heading p:last-child { max-width: 700px; }
+.sim-label { display: flex; align-items: center; gap: 10px; flex: none; padding: 10px 13px; color: var(--mint); border: 1px solid #315549; border-radius: 999px; font-size: 10px; }
+.sim-label-dot { width: 6px; height: 6px; }
+.workbench { display: grid; grid-template-columns: minmax(300px, 365px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.controls-panel, .route-panel, .evidence-panel, .counts-panel, .comparison-panel, .trace-panel {
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+}
+.controls-panel { padding: 24px; }
+.panel-heading { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
+.panel-heading h3 { margin: 5px 0 0; font-size: 20px; letter-spacing: -.035em; }
+.panel-heading.compact h3 { font-size: 18px; }
+.panel-index { color: var(--mint); font-size: 10px; }
+.panel-symbol { color: var(--mint); font-size: 26px; font-weight: 300; }
+.control-help, .detail-note { color: var(--muted); font-size: 12px; line-height: 1.55; }
+.control-help { margin: 14px 0 20px; }
+.preset-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; margin-bottom: 25px; }
+.preset { min-height: 35px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 700; }
+.preset:hover { border-color: var(--mint-deep); color: var(--text); }
+.preset.is-selected { border-color: var(--mint-deep); background: #203d39; color: var(--mint); }
+.control-stack { display: grid; gap: 21px; }
+.control-label, .range-ends { display: flex; justify-content: space-between; gap: 12px; }
+.control-label { align-items: baseline; margin-bottom: 9px; font-size: 12px; font-weight: 650; }
+.control-label output { color: var(--mint); font-variant-numeric: tabular-nums; }
+input[type="range"] { display: block; width: 100%; height: 7px; margin: 0; accent-color: var(--mint-deep); cursor: pointer; }
+.range-ends { margin-top: 8px; color: var(--faint); font-size: 9px; letter-spacing: .06em; font-weight: 750; }
+.control-options { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
+.select-label { display: block; margin-bottom: 9px; font-size: 12px; font-weight: 700; }
+select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-size: 12px; }
+.switch-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 20px; cursor: pointer; }
+.switch-row strong { display: block; margin-bottom: 4px; font-size: 12px; }
+.switch-row small { display: block; max-width: 238px; color: var(--faint); line-height: 1.45; }
+.switch-row input { width: 19px; height: 19px; flex: none; accent-color: var(--mint-deep); }
+
+.results-panel { display: grid; gap: 16px; min-width: 0; }
+.verdict-card {
+  padding: 25px 27px; border-radius: var(--radius); border: 1px solid #3c735f;
+  background: radial-gradient(circle at 91% 23%, rgba(99, 226, 173, .16), transparent 35%), linear-gradient(115deg, #142b29, #14212b 65%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .04);
+}
+.verdict-card[data-decision="LOW"] { border-color: #5088a2; background: radial-gradient(circle at 91% 23%, rgba(111, 203, 226, .16), transparent 35%), linear-gradient(115deg, #152734, #14212b 65%); }
+.verdict-card[data-decision="SKIP"] { border-color: #9a7852; background: radial-gradient(circle at 91% 23%, rgba(238, 181, 111, .13), transparent 35%), linear-gradient(115deg, #2b2725, #17212a 65%); }
+.verdict-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.verdict-path { padding: 6px 10px; border: 1px solid rgba(150, 210, 185, .35); border-radius: 99px; color: var(--mint); font-size: 11px; font-weight: 700; }
+.verdict-card[data-decision="SKIP"] .verdict-path { color: var(--amber); border-color: #937653; }
+.verdict-main { display: flex; align-items: end; justify-content: space-between; gap: 25px; margin-top: 15px; }
+.verdict-caption { margin: 0 0 1px; color: var(--muted); font-size: 11px; }
+.decision { display: block; color: var(--mint); font-size: clamp(46px, 5vw, 69px); line-height: 1; font-weight: 850; letter-spacing: -.08em; }
+.verdict-card[data-decision="LOW"] .decision { color: var(--cyan); }
+.verdict-card[data-decision="SKIP"] .decision { color: var(--amber); }
+.verdict-explanation { max-width: 315px; margin: 0 0 4px; color: #d0dde0; font-size: 13px; line-height: 1.5; }
+.verdict-disclaimer { margin: 23px 0 0; padding-top: 12px; border-top: 1px solid rgba(211, 233, 228, .16); color: var(--muted); font-size: 11px; }
+
+.route-panel, .comparison-panel, .trace-panel { padding: 23px 25px; }
+.route-summary { padding: 6px 10px; border-radius: 99px; background: var(--surface-3); color: var(--muted); font-size: 11px; font-weight: 700; }
+.route-track { display: grid; grid-template-columns: minmax(0, 1fr) 19px minmax(0, 1fr) 19px minmax(0, 1fr) 19px minmax(0, 1fr); align-items: center; gap: 5px; margin-top: 22px; }
+.route-arrow { color: var(--faint); text-align: center; }
+.route-stage { display: flex; flex-direction: column; min-height: 105px; padding: 13px 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); }
+.route-stage.is-active { border-color: #417660; background: #18372f; }
+.route-stage.is-blocked { border-color: #957448; background: #342c24; }
+.route-stage.is-dormant { opacity: .55; }
+.stage-step { margin-bottom: 11px; color: var(--mint); font-size: 9px; }
+.route-stage.is-blocked .stage-step { color: var(--amber); }
+.route-stage strong { font-size: 12px; }
+.route-stage small { margin-top: 6px; color: var(--muted); line-height: 1.35; font-size: 10px; }
+.route-reason { margin: 18px 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.judge-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.judge-chip { padding: 6px 9px; border: 1px solid #32564d; border-radius: 7px; background: #1a3330; color: var(--mint); font-size: 10px; font-weight: 700; }
+.judge-chip.is-fetched-only { color: var(--amber); border-color: #806543; background: #30281e; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.evidence-panel, .counts-panel { padding: 23px 25px; min-width: 0; }
+.detail-note { margin: 13px 0 19px; }
+.state-snapshot { padding: 12px 14px; border: 1px solid #32564d; border-radius: 10px; background: #152a29; }
+.state-label { display: block; color: var(--mint); font-size: 11px; letter-spacing: .025em; }
+.snapshot-values { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; color: var(--muted); font-size: 10px; }
+.snapshot-values strong { margin-left: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
+.final-state-label { margin-top: 21px; color: var(--text); }
+.metric { margin-top: 14px; }
+.metric > div:first-child { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; color: var(--muted); font-size: 11px; }
+.metric strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.meter, .comparison-track { height: 6px; border-radius: 99px; overflow: hidden; background: #283746; }
+.meter i, .comparison-track i { display: block; width: 0; height: 100%; background: var(--mint); border-radius: inherit; transition: width .25s ease; }
+#bar-disagreement, #bar-uncertainty { background: var(--amber); }
+#bar-actionability { background: var(--cyan); }
+.count-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.count-grid div { min-width: 0; padding: 11px 4px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--surface-2); text-align: center; }
+.count-grid strong { display: block; color: var(--mint); font-size: 27px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.count-grid span { color: var(--muted); font-size: 10px; }
+.request-note { margin: 21px 0 0; color: var(--muted); font-size: 11px; }
+.request-note strong { color: var(--text); }
+.comparison-row { display: grid; grid-template-columns: 75px 1fr 25px; gap: 12px; align-items: center; margin-top: 14px; font-size: 11px; color: var(--muted); }
+.comparison-row strong { color: var(--text); text-align: right; }
+#dynamic-bar { background: var(--mint); }
+#fixed-bar { background: #657f95; }
+.comparison-note { margin: 18px 0 0; color: var(--faint); font-size: 11px; }
+.trace-list { display: grid; gap: 0; margin: 18px 0 0; padding: 0; list-style: none; }
+.trace-list li { position: relative; padding: 0 0 16px 25px; border-left: 1px solid #38584f; margin-left: 5px; }
+.trace-list li:last-child { padding-bottom: 0; border-left-color: transparent; }
+.trace-list li::before { content: ""; position: absolute; left: -5px; top: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px #20392f; }
+.trace-list strong { display: block; margin-bottom: 4px; font-size: 12px; }
+.trace-list span { display: block; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.rules-panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.rules-panel summary { display: flex; justify-content: space-between; gap: 12px; padding: 18px 25px; cursor: pointer; font-size: 13px; font-weight: 750; list-style: none; }
+.rules-panel summary::-webkit-details-marker { display: none; }
+.rules-panel summary span { color: var(--mint); font-size: 20px; line-height: .8; }
+.rules-panel[open] summary { border-bottom: 1px solid var(--line); }
+.rules-content { padding: 18px 25px 23px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.rules-content p { margin: 0 0 12px; }
+.rules-content ol { padding-left: 20px; margin: 0; }
+.rules-content li { padding-left: 5px; margin-top: 9px; }
+.rules-content strong { color: var(--text); }
+
+.definitions { padding-block: 105px 110px; }
+.section-heading.narrow { max-width: 715px; }
+.definition-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 37px; }
+.definition-grid article { padding: 23px; border-top: 1px solid #497d68; background: #111c28; border-radius: 0 0 13px 13px; }
+.definition-grid article > span { color: var(--mint); font-size: 11px; font-weight: 800; letter-spacing: .1em; }
+.definition-grid h3 { margin: 29px 0 10px; font-size: 18px; }
+.definition-grid p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.research-section { border-top: 1px solid var(--line); padding-block: 105px 110px; background: #101824; }
+.research-layout { display: grid; grid-template-columns: 1fr .85fr; gap: 95px; }
+.research-layout h2 { max-width: 600px; }
+.research-lead { max-width: 560px; color: var(--muted); line-height: 1.7; }
+.research-links { display: grid; gap: 10px; margin-top: 35px; max-width: 510px; }
+.research-links a { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 13px; font-weight: 700; }
+.research-links a:hover, .research-links a span { color: var(--mint); }
+.roadmap { border-left: 1px solid var(--line); }
+.roadmap > div { position: relative; padding: 0 0 28px 30px; margin-left: -4px; }
+.roadmap > div::before { content: ""; position: absolute; left: 0; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--mint); }
+.roadmap > div:last-child { padding-bottom: 0; }
+.roadmap-index { display: block; color: var(--mint); }
+.roadmap strong { display: block; margin: 7px 0; font-size: 18px; }
+.roadmap p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.site-footer { padding: 25px 0; border-top: 1px solid var(--line); background: #0b121b; }
+.footer-inner { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 11px; }
+.muted { color: var(--faint); }
+.noscript { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; padding: 14px; margin: 0; background: var(--amber); color: #211b12; text-align: center; }
+
+@media (max-width: 1050px) {
+  .hero { grid-template-columns: 1fr; padding-top: 76px; }
+  .hero-art { max-width: 750px; width: 100%; min-height: 420px; }
+  .sim-heading { align-items: start; flex-direction: column; }
+  .workbench { grid-template-columns: 1fr; }
+  .controls-panel { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
+  .controls-panel .panel-heading, .controls-panel .control-help, .preset-list { grid-column: 1; }
+  .control-stack { grid-column: 2; grid-row: 1 / span 4; }
+  .control-options { grid-column: 1; }
+  .research-layout { gap: 45px; }
+}
+@media (max-width: 720px) {
+  .shell { width: min(100% - 32px, 1240px); }
+  .header-inner { min-height: 65px; }
+  .brand-name, .header-nav { display: none; }
+  .hero { padding-block: 67px 72px; }
+  h1 { font-size: clamp(42px, 10vw, 62px); }
+  .hero-art { min-height: 390px; }
+  .art-node { min-width: 112px; padding: 9px; }
+  .art-node strong { font-size: 11px; }
+  .art-input { left: 5%; }
+  .art-gate { right: 4%; }
+  .art-wave { left: 7%; }
+  .art-evidence { right: 4%; }
+  .art-route { left: 4%; }
+  .art-outcome { right: 4%; }
+  .section-divider span:last-child { display: none; }
+  .intro, .definitions, .research-section { padding-block: 72px; }
+  .principles { grid-template-columns: 1fr; gap: 10px; margin-top: 28px; }
+  .principle { min-height: 0; }
+  .principle h3 { margin-top: 22px; }
+  .simulator-section { padding-block: 72px; }
+  .controls-panel { display: block; }
+  .detail-grid, .research-layout { grid-template-columns: 1fr; }
+  .definition-grid { grid-template-columns: repeat(2, 1fr); }
+  .route-track { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .route-arrow { display: none; }
+  .verdict-main { align-items: start; flex-direction: column; gap: 13px; }
+  .research-layout { gap: 45px; }
+  .footer-inner { flex-direction: column; }
+}
+@media (max-width: 420px) {
+  .header-repo { padding: 9px 11px; font-size: 11px; }
+  .hero-art { min-height: 390px; }
+  .art-node { min-width: 96px; }
+  .art-outcome { top: 78%; }
+  .art-caption { bottom: 8px; }
+  .definition-grid { grid-template-columns: 1fr; }
+  .count-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+  <!-- INLINE_STYLES_END -->
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -288,5 +612,380 @@
     </div>
   </footer>
   <noscript><p class="noscript">Enable JavaScript to use the interactive simulator. The research overview and links remain available.</p></noscript>
+  <!-- INLINE_SCRIPT_START -->
+<script>
+(() => {
+// An inspectable teaching model. These rules and scores are illustrative;
+// they are not Jev outputs, calibrated probabilities, or research results.
+const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+const round = (value) => Math.round(value * 100) / 100;
+const fixedJudgeIds = ['trend', 'momentum', 'noise', 'mean-reversion', 'counter-high', 'counter-low'];
+const boundedInput = (value, min, max) =>
+  value === null || value === undefined || value === '' || !Number.isFinite(Number(value))
+    ? null
+    : clamp(Number(value), min, max);
+
+function evaluateScenario(rawInput) {
+  const input = {
+    trend: boundedInput(rawInput.trend, -100, 100),
+    momentum: boundedInput(rawInput.momentum, -100, 100),
+    reversal: boundedInput(rawInput.reversal, 0, 100),
+    noise: boundedInput(rawInput.noise, 0, 100),
+    completeness: boundedInput(rawInput.completeness, 0, 100),
+    maxWaves: Number(rawInput.maxWaves) === 1 ? 1 : 2,
+    speculative: Boolean(rawInput.speculative),
+  };
+  const missingFeature = ['trend', 'momentum', 'reversal', 'noise', 'completeness']
+    .some((name) => input[name] === null);
+  const gatePassed = !missingFeature && input.completeness >= 40;
+  const waves = [];
+  const fetchedJudges = [];
+  const activatedJudges = [];
+  const usedJudges = [];
+  const trace = [];
+  let providerRequests = 0;
+
+  function recordWave(index, judges, newlyFetched, reason) {
+    waves.push({ index, judges, newlyFetched, reason });
+    providerRequests += 1;
+    for (const judge of newlyFetched) {
+      if (!fetchedJudges.includes(judge)) fetchedJudges.push(judge);
+    }
+    for (const judge of judges) {
+      if (!activatedJudges.includes(judge)) activatedJudges.push(judge);
+      if (!usedJudges.includes(judge)) usedJudges.push(judge);
+    }
+  }
+
+  function finish(decision, stopReason, evidence, routeReason) {
+    return {
+      input,
+      decision,
+      stopReason,
+      routeReason,
+      evidence,
+      waves,
+      trace,
+      fetchedJudges,
+      activatedJudges,
+      usedJudges,
+      counts: {
+        requested: fetchedJudges.length,
+        fetched: fetchedJudges.length,
+        activated: activatedJudges.length,
+        used: usedJudges.length,
+        providerRequests,
+      },
+      fixedBaseline: {
+        judges: gatePassed ? [...fixedJudgeIds] : [],
+        questions: gatePassed ? fixedJudgeIds.length : 0,
+        providerRequests: gatePassed ? 1 : 0,
+      },
+    };
+  }
+
+  if (!gatePassed) {
+    trace.push({
+      title: 'Deterministic gate',
+      detail: missingFeature
+        ? 'A required feature is missing or invalid; no Judge question is sent.'
+        : 'Data completeness is below 40%; no Judge question is sent.',
+    });
+    return finish('SKIP', 'missing-data', null, 'The input is incomplete.');
+  }
+  trace.push({ title: 'Deterministic gate', detail: 'Input passes the data sufficiency check.' });
+
+  const waveZeroJudges = ['trend', 'momentum', 'noise'];
+  const waveZeroFetched = input.speculative
+    ? [...waveZeroJudges, 'mean-reversion']
+    : waveZeroJudges;
+  recordWave(0, waveZeroJudges, waveZeroFetched, 'Initial independent judgments');
+  trace.push({
+    title: 'Wave 0',
+    detail: input.speculative
+      ? 'Trend, Momentum, and Noise are activated. Mean Reversion is fetched speculatively.'
+      : 'Trend, Momentum, and Noise share one illustrative provider request.',
+  });
+
+  const trend = input.trend / 100;
+  const momentum = input.momentum / 100;
+  const reversal = input.reversal / 100;
+  const noise = input.noise / 100;
+  const disagreement = Math.abs(trend - momentum) / 2;
+  let directionScore = 0.55 * trend + 0.45 * momentum;
+  let uncertainty = clamp(1 - Math.abs(directionScore) + 0.25 * noise + 0.125 * disagreement);
+  const preliminaryDirection = directionScore >= 0 ? 'HIGH' : 'LOW';
+  const waveZeroEvidence = {
+    directionScore: round(directionScore),
+    disagreement: round(disagreement),
+    uncertainty: round(uncertainty),
+  };
+  const needsMoreEvidence = uncertainty >= 0.55 || reversal >= 0.55 || disagreement >= 0.45;
+  let routeReason = needsMoreEvidence
+    ? 'Uncertainty, reversal risk, or Judge disagreement warrants another wave.'
+    : 'The initial evidence is sufficiently clear to stop after Wave 0.';
+
+  if (needsMoreEvidence && input.maxWaves === 1) {
+    trace.push({ title: 'Stop', detail: 'More evidence is needed, but the wave budget is exhausted. Return SKIP.' });
+    return finish('SKIP', 'budget', {
+      ...waveZeroEvidence,
+      actionability: null,
+      waveZero: waveZeroEvidence,
+    }, 'More evidence is needed, but the wave budget is exhausted.');
+  }
+
+  let counterStrength = 0;
+  if (needsMoreEvidence) {
+    const counterJudge = preliminaryDirection === 'HIGH' ? 'counter-high' : 'counter-low';
+    const waveOneJudges = [counterJudge];
+    if (input.reversal >= 45 || input.noise >= 55) waveOneJudges.push('mean-reversion');
+    const newlyFetched = waveOneJudges.filter((judge) => !fetchedJudges.includes(judge));
+    recordWave(1, waveOneJudges, newlyFetched, routeReason);
+    trace.push({
+      title: 'Wave 1',
+      detail: `The controller activates ${waveOneJudges.map((judge) => judge.replaceAll('-', ' ')).join(' and ')} against the ${preliminaryDirection} hypothesis.`,
+    });
+    counterStrength = clamp(0.5 * reversal + 0.25 * noise + 0.25 * disagreement);
+    const sign = preliminaryDirection === 'HIGH' ? 1 : -1;
+    directionScore -= sign * 0.32 * counterStrength;
+    if (waveOneJudges.includes('mean-reversion')) directionScore -= sign * 0.18 * reversal;
+    uncertainty = clamp(1 - Math.abs(directionScore) + 0.25 * noise + 0.125 * disagreement + 0.15 * counterStrength);
+  }
+
+  const actionability = clamp(
+    1 - 0.35 * noise - 0.28 * reversal - 0.25 * disagreement
+      - 0.12 * (1 - input.completeness / 100) - 0.12 * counterStrength,
+  );
+  const evidence = {
+    directionScore: round(directionScore),
+    disagreement: round(disagreement),
+    uncertainty: round(uncertainty),
+    actionability: round(actionability),
+    waveZero: waveZeroEvidence,
+  };
+
+  let decision;
+  let stopReason;
+  if (Math.abs(directionScore) < 0.34 || uncertainty > 0.68) {
+    decision = 'SKIP';
+    stopReason = 'insufficient-evidence';
+  } else if (actionability < 0.55) {
+    decision = 'SKIP';
+    stopReason = 'low-actionability';
+  } else {
+    decision = directionScore > 0 ? 'HIGH' : 'LOW';
+    stopReason = 'sufficient-evidence';
+  }
+  trace.push({
+    title: 'Direction + actionability',
+    detail: decision === 'SKIP'
+      ? 'The directional evidence or actionability gate is insufficient; decline to act.'
+      : `The evidence supports ${decision} and passes the actionability gate.`,
+  });
+  return finish(decision, stopReason, evidence, routeReason);
+}
+
+const controls = {
+  trend: document.getElementById('trend'),
+  momentum: document.getElementById('momentum'),
+  reversal: document.getElementById('reversal'),
+  noise: document.getElementById('noise'),
+  completeness: document.getElementById('completeness'),
+  maxWaves: document.getElementById('max-waves'),
+  speculative: document.getElementById('speculative'),
+};
+
+const presets = {
+  'clear-high': { trend: 85, momentum: 70, reversal: 10, noise: 10, completeness: 95 },
+  'clear-low': { trend: -85, momentum: -70, reversal: 10, noise: 10, completeness: 95 },
+  conflict: { trend: 70, momentum: -60, reversal: 65, noise: 35, completeness: 90 },
+  missing: { trend: 75, momentum: 68, reversal: 15, noise: 15, completeness: 25 },
+};
+
+const judgeNames = {
+  trend: 'Trend',
+  momentum: 'Momentum',
+  noise: 'Noise',
+  'mean-reversion': 'Mean Reversion',
+  'counter-high': 'Counter-HIGH',
+  'counter-low': 'Counter-LOW',
+};
+
+const explanations = {
+  'missing-data': 'The validity gate found insufficient data. The system declines to ask a Judge.',
+  budget: 'More evidence is needed, but the wave budget is exhausted. The safe outcome is SKIP.',
+  'insufficient-evidence': 'The directional evidence remains weak or uncertain after the available waves.',
+  'low-actionability': 'A direction is favored, but noise, risk, or disagreement makes actionability too low.',
+  'sufficient-evidence': 'Direction and actionability both pass the illustrative stopping rule.',
+};
+
+function setText(id, value) {
+  document.getElementById(id).textContent = String(value);
+}
+
+function readInput() {
+  return {
+    trend: Number(controls.trend.value),
+    momentum: Number(controls.momentum.value),
+    reversal: Number(controls.reversal.value),
+    noise: Number(controls.noise.value),
+    completeness: Number(controls.completeness.value),
+    maxWaves: Number(controls.maxWaves.value),
+    speculative: controls.speculative.checked,
+  };
+}
+
+function renderControls(input) {
+  setText('trend-value', `${input.trend > 0 ? '+' : ''}${input.trend}`);
+  setText('momentum-value', `${input.momentum > 0 ? '+' : ''}${input.momentum}`);
+  for (const name of ['reversal', 'noise', 'completeness']) {
+    setText(`${name}-value`, `${input[name]}%`);
+  }
+}
+
+function renderEvidence(evidence) {
+  const routing = evidence?.waveZero;
+  for (const [name, value] of Object.entries({
+    direction: routing?.directionScore ?? null,
+    disagreement: routing?.disagreement ?? null,
+    uncertainty: routing?.uncertainty ?? null,
+  })) {
+    setText(`routing-${name}`, value === null ? '—' : `${name === 'direction' && value > 0 ? '+' : ''}${value.toFixed(2)}`);
+  }
+  const fields = {
+    direction: evidence?.directionScore ?? null,
+    disagreement: evidence?.disagreement ?? null,
+    uncertainty: evidence?.uncertainty ?? null,
+    actionability: evidence?.actionability ?? null,
+  };
+  for (const [name, value] of Object.entries(fields)) {
+    const label = value === null ? '—' : `${name === 'direction' && value > 0 ? '+' : ''}${value.toFixed(2)}`;
+    setText(`metric-${name}`, label);
+    document.getElementById(`bar-${name}`).style.width = value === null ? '0%' : `${Math.abs(value) * 100}%`;
+  }
+}
+
+function stage(id, state) {
+  const element = document.getElementById(id);
+  element.classList.remove('is-active', 'is-dormant', 'is-blocked');
+  element.classList.add(`is-${state}`);
+}
+
+function renderRoute(result) {
+  const waveOne = result.waves.find((wave) => wave.index === 1);
+  const gateBlocked = result.stopReason === 'missing-data';
+  stage('stage-gate', gateBlocked ? 'blocked' : 'active');
+  stage('stage-wave0', gateBlocked ? 'dormant' : 'active');
+  stage('stage-evidence', gateBlocked ? 'dormant' : 'active');
+  stage('stage-wave1', waveOne ? 'active' : result.stopReason === 'budget' ? 'blocked' : 'dormant');
+  setText('gate-status', gateBlocked ? 'Insufficient data' : 'Passed');
+  setText('wave0-status', gateBlocked ? 'Not run' : '3 activated');
+  setText('evidence-status', gateBlocked ? 'Not formed' : 'Summary formed');
+  setText('wave1-status', waveOne ? `${waveOne.judges.length} activated` : result.stopReason === 'budget' ? 'Budget stop' : 'Not needed');
+  setText('route-summary', `${result.waves.length} wave${result.waves.length === 1 ? '' : 's'}`);
+  setText('route-reason', result.routeReason);
+
+  const chipContainer = document.getElementById('judge-chips');
+  chipContainer.replaceChildren();
+  if (result.activatedJudges.length === 0) {
+    const chip = document.createElement('span');
+    chip.className = 'judge-chip is-fetched-only';
+    chip.textContent = 'No Judge questions sent';
+    chipContainer.append(chip);
+    return;
+  }
+  for (const id of result.activatedJudges) {
+    const chip = document.createElement('span');
+    chip.className = 'judge-chip';
+    chip.textContent = judgeNames[id];
+    chipContainer.append(chip);
+  }
+  for (const id of result.fetchedJudges.filter((judge) => !result.activatedJudges.includes(judge))) {
+    const chip = document.createElement('span');
+    chip.className = 'judge-chip is-fetched-only';
+    chip.textContent = `${judgeNames[id]} · fetched only`;
+    chipContainer.append(chip);
+  }
+}
+
+function renderCounts(result) {
+  for (const name of ['requested', 'fetched', 'activated', 'used']) {
+    setText(`count-${name}`, result.counts[name]);
+  }
+  setText('request-count', result.counts.providerRequests);
+  setText('request-plural', result.counts.providerRequests === 1 ? '' : 's');
+  setText('wave-count', result.waves.length);
+  setText('wave-plural', result.waves.length === 1 ? '' : 's');
+  setText('fixed-count', result.fixedBaseline.questions);
+  setText('dynamic-count', result.counts.requested);
+  const scale = result.fixedBaseline.questions || 1;
+  document.getElementById('fixed-bar').style.width = `${result.fixedBaseline.questions / scale * 100}%`;
+  document.getElementById('dynamic-bar').style.width = `${result.counts.requested / scale * 100}%`;
+  const saved = result.fixedBaseline.questions - result.counts.requested;
+  setText('comparison-note', result.fixedBaseline.questions === 0
+    ? 'Both paths stop at the same data sufficiency gate.'
+    : saved > 0
+      ? `This toy path requested ${saved} fewer question${saved === 1 ? '' : 's'}. No quality or cost gain has been measured.`
+      : 'This path requested the full fixed question set. No question-count saving in this scenario.');
+}
+
+function renderTrace(trace) {
+  const list = document.getElementById('trace-list');
+  list.replaceChildren();
+  for (const item of trace) {
+    const row = document.createElement('li');
+    const title = document.createElement('strong');
+    const detail = document.createElement('span');
+    title.textContent = item.title;
+    detail.textContent = item.detail;
+    row.append(title, detail);
+    list.append(row);
+  }
+}
+
+function render() {
+  const input = readInput();
+  const result = evaluateScenario(input);
+  renderControls(input);
+  const verdict = document.getElementById('verdict-card');
+  verdict.dataset.decision = result.decision;
+  setText('decision', result.decision);
+  setText('verdict-path', result.waves.length === 0 ? 'Gate stop' : result.stopReason === 'budget' ? 'Budget stop' : `Wave ${result.waves.length - 1} stop`);
+  setText('decision-explanation', explanations[result.stopReason]);
+  renderRoute(result);
+  renderEvidence(result.evidence);
+  renderCounts(result);
+  renderTrace(result.trace);
+}
+
+for (const control of Object.values(controls)) {
+  control.addEventListener('input', () => {
+    for (const button of document.querySelectorAll('[data-preset]')) {
+      button.classList.remove('is-selected');
+      button.setAttribute('aria-pressed', 'false');
+    }
+    render();
+  });
+}
+
+for (const button of document.querySelectorAll('[data-preset]')) {
+  button.setAttribute('aria-pressed', String(button.dataset.preset === 'clear-high'));
+  button.addEventListener('click', () => {
+    for (const [name, value] of Object.entries(presets[button.dataset.preset])) {
+      controls[name].value = value;
+    }
+    for (const candidate of document.querySelectorAll('[data-preset]')) {
+      const selected = candidate === button;
+      candidate.classList.toggle('is-selected', selected);
+      candidate.setAttribute('aria-pressed', String(selected));
+    }
+    render();
+  });
+}
+
+render();
+})();
+</script>
+  <!-- INLINE_SCRIPT_END -->
 </body>
 </html>
