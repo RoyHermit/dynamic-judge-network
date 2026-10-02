@@ -17,6 +17,7 @@ export function evaluateScenario(rawInput) {
     completeness: boundedInput(rawInput.completeness, 0, 100),
     maxWaves: Number(rawInput.maxWaves) === 1 ? 1 : 2,
     speculative: Boolean(rawInput.speculative),
+    routingPolicy: rawInput.routingPolicy === 'adaptive' ? 'adaptive' : 'fixed',
   };
   const missingFeature = ['trend', 'momentum', 'reversal', 'noise', 'completeness']
     .some((name) => input[name] === null);
@@ -27,6 +28,7 @@ export function evaluateScenario(rawInput) {
   const usedJudges = [];
   const trace = [];
   let providerRequests = 0;
+  let routing = null;
 
   function recordWave(index, judges, newlyFetched, reason) {
     waves.push({ index, judges, newlyFetched, reason });
@@ -46,6 +48,7 @@ export function evaluateScenario(rawInput) {
       decision,
       stopReason,
       routeReason,
+      routing,
       evidence,
       waves,
       trace,
@@ -103,10 +106,23 @@ export function evaluateScenario(rawInput) {
     disagreement: round(disagreement),
     uncertainty: round(uncertainty),
   };
-  const needsMoreEvidence = uncertainty >= 0.55 || reversal >= 0.55 || disagreement >= 0.45;
-  let routeReason = needsMoreEvidence
-    ? 'Uncertainty, reversal risk, or Judge disagreement warrants another wave.'
-    : 'The initial evidence is sufficiently clear to stop after Wave 0.';
+  const threshold = input.routingPolicy === 'adaptive'
+    ? clamp(0.55 + 0.05 * Math.abs(directionScore) - 0.12 * reversal - 0.10 * disagreement, 0.40, 0.65)
+    : 0.55;
+  const triggers = [];
+  if (uncertainty >= threshold) triggers.push('uncertainty');
+  if (reversal >= 0.55) triggers.push('reversal risk');
+  if (disagreement >= 0.45) triggers.push('Judge disagreement');
+  const needsMoreEvidence = triggers.length > 0;
+  routing = {
+    policy: input.routingPolicy,
+    uncertainty: round(uncertainty),
+    threshold: round(threshold),
+    triggers,
+  };
+  const routeReason = needsMoreEvidence
+    ? `Wave 1 is requested by ${triggers.join(', ')} under the ${input.routingPolicy} routing rule.`
+    : `No Wave 1 trigger fired under the ${input.routingPolicy} routing rule.`;
 
   if (needsMoreEvidence && input.maxWaves === 1) {
     trace.push({ title: 'Stop', detail: 'More evidence is needed, but the wave budget is exhausted. Return SKIP.' });

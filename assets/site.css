@@ -194,6 +194,7 @@ select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid 
 .route-stage strong { font-size: 12px; }
 .route-stage small { margin-top: 6px; color: var(--muted); line-height: 1.35; font-size: 10px; }
 .route-reason { margin: 18px 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.routing-detail { margin: 0 0 14px; padding: 10px 12px; border-left: 2px solid var(--mint-deep); background: var(--surface-2); color: var(--text); font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .judge-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .judge-chip { padding: 6px 9px; border: 1px solid #32564d; border-radius: 7px; background: #1a3330; color: var(--mint); font-size: 10px; font-weight: 700; }
 .judge-chip.is-fetched-only { color: var(--amber); border-color: #806543; background: #30281e; }

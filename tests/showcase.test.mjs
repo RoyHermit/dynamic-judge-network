@@ -61,6 +61,32 @@ test('a one-wave budget does not force a weak decision', () => {
   assert.equal(result.waves.length, 1);
 });
 
+test('adaptive routing can activate counter-evidence for a gate-valid borderline case', () => {
+  const borderline = {
+    ...clearHigh, trend: 90, momentum: 10, reversal: 54, noise: 0,
+  };
+  const fixed = evaluateScenario({ ...borderline, routingPolicy: 'fixed' });
+  const adaptive = evaluateScenario({ ...borderline, routingPolicy: 'adaptive' });
+  assert.equal(fixed.waves.length, 1);
+  assert.equal(adaptive.waves.length, 2);
+  assert.ok(adaptive.waves[1].judges.includes('counter-high'));
+  assert.equal(adaptive.routing.threshold, 0.47);
+  assert.equal(adaptive.routing.uncertainty, 0.51);
+});
+
+test('adaptive routing preserves the data gate and wave budget', () => {
+  const borderline = {
+    ...clearHigh, trend: 90, momentum: 10, reversal: 54, noise: 0,
+    routingPolicy: 'adaptive',
+  };
+  const invalid = evaluateScenario({ ...borderline, completeness: 25 });
+  const budgeted = evaluateScenario({ ...borderline, maxWaves: 1 });
+  assert.equal(invalid.stopReason, 'missing-data');
+  assert.equal(invalid.counts.requested, 0);
+  assert.equal(budgeted.stopReason, 'budget');
+  assert.equal(budgeted.waves.length, 1);
+});
+
 test('speculative fetch is charged even when the answer is not activated', () => {
   const result = evaluateScenario({ ...clearHigh, speculative: true });
   assert.equal(result.decision, 'HIGH');

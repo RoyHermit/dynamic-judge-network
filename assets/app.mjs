@@ -8,12 +8,14 @@ const controls = {
   completeness: document.getElementById('completeness'),
   maxWaves: document.getElementById('max-waves'),
   speculative: document.getElementById('speculative'),
+  routingPolicy: document.getElementById('routing-policy'),
 };
 
 const presets = {
   'clear-high': { trend: 85, momentum: 70, reversal: 10, noise: 10, completeness: 95 },
   'clear-low': { trend: -85, momentum: -70, reversal: 10, noise: 10, completeness: 95 },
   conflict: { trend: 70, momentum: -60, reversal: 65, noise: 35, completeness: 90 },
+  borderline: { trend: 90, momentum: 10, reversal: 54, noise: 0, completeness: 95 },
   missing: { trend: 75, momentum: 68, reversal: 15, noise: 15, completeness: 25 },
 };
 
@@ -47,6 +49,7 @@ function readInput() {
     completeness: Number(controls.completeness.value),
     maxWaves: Number(controls.maxWaves.value),
     speculative: controls.speculative.checked,
+    routingPolicy: controls.routingPolicy.value,
   };
 }
 
@@ -99,6 +102,9 @@ function renderRoute(result) {
   setText('wave1-status', waveOne ? `${waveOne.judges.length} activated` : result.stopReason === 'budget' ? 'Budget stop' : 'Not needed');
   setText('route-summary', `${result.waves.length} wave${result.waves.length === 1 ? '' : 's'}`);
   setText('route-reason', result.routeReason);
+  setText('routing-detail', result.routing
+    ? `Wave 1 uncertainty check: ${result.routing.uncertainty.toFixed(2)} versus ${result.routing.policy} threshold ${result.routing.threshold.toFixed(2)}. Reversal risk ≥ 0.55 or disagreement ≥ 0.45 also activates Wave 1.`
+    : 'The data gate stopped routing before any threshold check.');
 
   const chipContainer = document.getElementById('judge-chips');
   chipContainer.replaceChildren();
@@ -173,11 +179,13 @@ function render() {
   renderTrace(result.trace);
 }
 
-for (const control of Object.values(controls)) {
+for (const [name, control] of Object.entries(controls)) {
   control.addEventListener('input', () => {
-    for (const button of document.querySelectorAll('[data-preset]')) {
-      button.classList.remove('is-selected');
-      button.setAttribute('aria-pressed', 'false');
+    if (['trend', 'momentum', 'reversal', 'noise', 'completeness'].includes(name)) {
+      for (const button of document.querySelectorAll('[data-preset]')) {
+        button.classList.remove('is-selected');
+        button.setAttribute('aria-pressed', 'false');
+      }
     }
     render();
   });

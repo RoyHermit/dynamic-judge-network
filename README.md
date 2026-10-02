@@ -22,7 +22,10 @@ at the end for the current, honest line between the two.
 ([`index.html`](index.html)) is a standalone, dependency-free browser
 explainer for the current DJN research direction. Its synthetic High/Low
 scenario lets you change directional evidence, reversal risk, noise,
-data completeness, wave budget, and speculative fetching. It shows the
+data completeness, wave budget, speculative fetching, and the Wave 1
+routing rule. A fixed threshold is the default; an optional deterministic
+adaptive-threshold preview illustrates one SpikingBrain-inspired research
+hypothesis. It shows the
 deterministic gate, Activation Waves, Evidence State, counter-evidence,
 `HIGH`/`LOW`/`SKIP` outcome, and requested/fetched/activated/used counts.
 

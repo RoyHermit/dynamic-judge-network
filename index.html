@@ -204,6 +204,7 @@ select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid 
 .route-stage strong { font-size: 12px; }
 .route-stage small { margin-top: 6px; color: var(--muted); line-height: 1.35; font-size: 10px; }
 .route-reason { margin: 18px 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.routing-detail { margin: 0 0 14px; padding: 10px 12px; border-left: 2px solid var(--mint-deep); background: var(--surface-2); color: var(--text); font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .judge-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .judge-chip { padding: 6px 9px; border: 1px solid #32564d; border-radius: 7px; background: #1a3330; color: var(--mint); font-size: 10px; font-weight: 700; }
 .judge-chip.is-fetched-only { color: var(--amber); border-color: #806543; background: #30281e; }
@@ -416,7 +417,7 @@ select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid 
           <div>
             <p class="kicker">Interactive toy model</p>
             <h2 id="sim-title">Put the decision path under pressure.</h2>
-            <p>Change synthetic inputs. Watch the deterministic controller choose Judges and stop. The scores below are illustrative rules, not calibrated probabilities or benchmark results.</p>
+            <p>Change synthetic inputs and compare a fixed routing rule with a proposed adaptive threshold. Both are illustrative, deterministic rules, not calibrated probabilities or benchmark results.</p>
           </div>
           <div class="sim-label"><span class="sim-label-dot"></span> NO API CALLS · NO REAL MARKET DATA</div>
         </div>
@@ -436,6 +437,7 @@ select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid 
               <button class="preset is-selected" type="button" data-preset="clear-high">Clear HIGH</button>
               <button class="preset" type="button" data-preset="clear-low">Clear LOW</button>
               <button class="preset" type="button" data-preset="conflict">Conflicting</button>
+              <button class="preset" type="button" data-preset="borderline">Borderline routing</button>
               <button class="preset" type="button" data-preset="missing">Missing data</button>
             </div>
 
@@ -468,6 +470,12 @@ select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid 
             </div>
 
             <div class="control-options">
+              <label class="select-label" for="routing-policy">Wave 1 routing policy</label>
+              <select id="routing-policy">
+                <option value="fixed" selected>Fixed threshold · current toy baseline</option>
+                <option value="adaptive">Adaptive threshold · research hypothesis</option>
+              </select>
+              <p class="control-help">The adaptive option is a SpikingBrain-inspired DJN hypothesis. It changes the toy route only; no provider or market data is used.</p>
               <label class="select-label" for="max-waves">Maximum Judge waves</label>
               <select id="max-waves">
                 <option value="2" selected>2 waves · allow counter-evidence</option>
@@ -505,6 +513,7 @@ select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid 
                 <div class="route-stage" id="stage-wave1"><span class="stage-step">WAVE 1</span><strong>Counter-evidence</strong><small id="wave1-status">Not needed</small></div>
               </div>
               <p id="route-reason" class="route-reason"></p>
+              <p id="routing-detail" class="routing-detail">Wave 1 uncertainty check: 0.25 versus threshold 0.55.</p>
               <div id="judge-chips" class="judge-chips" aria-label="Activated Judges"></div>
             </div>
 
@@ -560,7 +569,7 @@ select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid 
                 <ol>
                   <li><strong>Gate:</strong> completeness below 40% returns SKIP before any Judge question.</li>
                   <li><strong>Wave 0:</strong> Trend, Momentum, and Noise run together. Direction = 0.55 × Trend + 0.45 × Momentum; signed inputs are scaled to −1…+1. Disagreement = |Trend − Momentum| ÷ 2. Uncertainty = clip(1 − |direction| + 0.25 × Noise + 0.125 × disagreement).</li>
-                  <li><strong>Route:</strong> another wave runs when uncertainty is at least 0.55, reversal risk at least 0.55, or disagreement at least 0.45. A one-wave budget returns SKIP when more evidence is needed.</li>
+                  <li><strong>Route:</strong> the fixed policy runs Wave 1 when uncertainty reaches 0.55, reversal risk reaches 0.55, or disagreement reaches 0.45. The adaptive hypothesis changes only the uncertainty threshold to clip(0.55 + 0.05 × |direction| − 0.12 × reversal − 0.10 × disagreement, 0.40, 0.65). The two risk triggers remain. A one-wave budget returns SKIP when more evidence is needed.</li>
                   <li><strong>Wave 1:</strong> a Counter-HIGH or Counter-LOW Judge challenges the preliminary direction. Mean Reversion joins when reversal risk is at least 0.45 or noise at least 0.55. Counter strength = clip(0.5 × Reversal + 0.25 × Noise + 0.25 × disagreement); it reduces the preliminary score, with an additional reversal adjustment when Mean Reversion runs.</li>
                   <li><strong>Stop:</strong> the final direction is used only when its score magnitude is at least 0.34, uncertainty at most 0.68, and actionability at least 0.55; otherwise the result is SKIP. Actionability falls as noise, reversal risk, disagreement, missing data, or counter-evidence rises.</li>
                 </ol>
@@ -590,7 +599,7 @@ select { width: 100%; padding: 11px 12px; color: var(--text); border: 1px solid 
           <p class="kicker">Research status</p>
           <h2 id="research-title">The architecture follows evidence.</h2>
           <p class="research-lead">The repository currently has a provider-agnostic Judge contract, a Jev stage executor, and SQLite records for provider calls and Judge answers. It does not yet have the network controller, benchmark pipeline, or end-to-end experiment results.</p>
-          <p class="research-lead">A SpikingBrain-inspired research input proposes adaptive Judge thresholds, group routing, and bounded extra waves as separate future tests. These are network-level hypotheses; the toy controller above uses fixed rules and does not implement spiking neurons or claim measured gains.</p>
+          <p class="research-lead">A SpikingBrain-inspired research input proposes adaptive Judge thresholds, group routing, and bounded extra waves as separate future tests. The interactive toy now previews one deterministic adaptive threshold alongside its fixed baseline. Group routing and burst waves remain future hypotheses; the preview does not implement spiking neurons or claim measured gains.</p>
           <div class="research-links">
             <a href="https://github.com/RoyHermit/dynamic-judge-network/blob/main/README.md" target="_blank" rel="noopener noreferrer">Project README <span aria-hidden="true">↗</span></a>
             <a href="https://github.com/RoyHermit/dynamic-judge-network/blob/main/docs/context/djn-research-direction-update.md" target="_blank" rel="noopener noreferrer">Research direction update <span aria-hidden="true">↗</span></a>
@@ -636,6 +645,7 @@ function evaluateScenario(rawInput) {
     completeness: boundedInput(rawInput.completeness, 0, 100),
     maxWaves: Number(rawInput.maxWaves) === 1 ? 1 : 2,
     speculative: Boolean(rawInput.speculative),
+    routingPolicy: rawInput.routingPolicy === 'adaptive' ? 'adaptive' : 'fixed',
   };
   const missingFeature = ['trend', 'momentum', 'reversal', 'noise', 'completeness']
     .some((name) => input[name] === null);
@@ -646,6 +656,7 @@ function evaluateScenario(rawInput) {
   const usedJudges = [];
   const trace = [];
   let providerRequests = 0;
+  let routing = null;
 
   function recordWave(index, judges, newlyFetched, reason) {
     waves.push({ index, judges, newlyFetched, reason });
@@ -665,6 +676,7 @@ function evaluateScenario(rawInput) {
       decision,
       stopReason,
       routeReason,
+      routing,
       evidence,
       waves,
       trace,
@@ -722,10 +734,23 @@ function evaluateScenario(rawInput) {
     disagreement: round(disagreement),
     uncertainty: round(uncertainty),
   };
-  const needsMoreEvidence = uncertainty >= 0.55 || reversal >= 0.55 || disagreement >= 0.45;
-  let routeReason = needsMoreEvidence
-    ? 'Uncertainty, reversal risk, or Judge disagreement warrants another wave.'
-    : 'The initial evidence is sufficiently clear to stop after Wave 0.';
+  const threshold = input.routingPolicy === 'adaptive'
+    ? clamp(0.55 + 0.05 * Math.abs(directionScore) - 0.12 * reversal - 0.10 * disagreement, 0.40, 0.65)
+    : 0.55;
+  const triggers = [];
+  if (uncertainty >= threshold) triggers.push('uncertainty');
+  if (reversal >= 0.55) triggers.push('reversal risk');
+  if (disagreement >= 0.45) triggers.push('Judge disagreement');
+  const needsMoreEvidence = triggers.length > 0;
+  routing = {
+    policy: input.routingPolicy,
+    uncertainty: round(uncertainty),
+    threshold: round(threshold),
+    triggers,
+  };
+  const routeReason = needsMoreEvidence
+    ? `Wave 1 is requested by ${triggers.join(', ')} under the ${input.routingPolicy} routing rule.`
+    : `No Wave 1 trigger fired under the ${input.routingPolicy} routing rule.`;
 
   if (needsMoreEvidence && input.maxWaves === 1) {
     trace.push({ title: 'Stop', detail: 'More evidence is needed, but the wave budget is exhausted. Return SKIP.' });
@@ -795,12 +820,14 @@ const controls = {
   completeness: document.getElementById('completeness'),
   maxWaves: document.getElementById('max-waves'),
   speculative: document.getElementById('speculative'),
+  routingPolicy: document.getElementById('routing-policy'),
 };
 
 const presets = {
   'clear-high': { trend: 85, momentum: 70, reversal: 10, noise: 10, completeness: 95 },
   'clear-low': { trend: -85, momentum: -70, reversal: 10, noise: 10, completeness: 95 },
   conflict: { trend: 70, momentum: -60, reversal: 65, noise: 35, completeness: 90 },
+  borderline: { trend: 90, momentum: 10, reversal: 54, noise: 0, completeness: 95 },
   missing: { trend: 75, momentum: 68, reversal: 15, noise: 15, completeness: 25 },
 };
 
@@ -834,6 +861,7 @@ function readInput() {
     completeness: Number(controls.completeness.value),
     maxWaves: Number(controls.maxWaves.value),
     speculative: controls.speculative.checked,
+    routingPolicy: controls.routingPolicy.value,
   };
 }
 
@@ -886,6 +914,9 @@ function renderRoute(result) {
   setText('wave1-status', waveOne ? `${waveOne.judges.length} activated` : result.stopReason === 'budget' ? 'Budget stop' : 'Not needed');
   setText('route-summary', `${result.waves.length} wave${result.waves.length === 1 ? '' : 's'}`);
   setText('route-reason', result.routeReason);
+  setText('routing-detail', result.routing
+    ? `Wave 1 uncertainty check: ${result.routing.uncertainty.toFixed(2)} versus ${result.routing.policy} threshold ${result.routing.threshold.toFixed(2)}. Reversal risk ≥ 0.55 or disagreement ≥ 0.45 also activates Wave 1.`
+    : 'The data gate stopped routing before any threshold check.');
 
   const chipContainer = document.getElementById('judge-chips');
   chipContainer.replaceChildren();
@@ -960,11 +991,13 @@ function render() {
   renderTrace(result.trace);
 }
 
-for (const control of Object.values(controls)) {
+for (const [name, control] of Object.entries(controls)) {
   control.addEventListener('input', () => {
-    for (const button of document.querySelectorAll('[data-preset]')) {
-      button.classList.remove('is-selected');
-      button.setAttribute('aria-pressed', 'false');
+    if (['trend', 'momentum', 'reversal', 'noise', 'completeness'].includes(name)) {
+      for (const button of document.querySelectorAll('[data-preset]')) {
+        button.classList.remove('is-selected');
+        button.setAttribute('aria-pressed', 'false');
+      }
     }
     render();
   });
