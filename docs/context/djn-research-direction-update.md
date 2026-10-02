@@ -9,6 +9,12 @@
 > This document guides future research specs where the original baseline
 > taxonomy, ablation order, or logging requirements differ.
 >
+> **Further companion:** The
+> [SpikingBrain-inspired research input](djn-research-input-spikingbrain.md)
+> proposes additional, separately testable sparse-activation hypotheses
+> for later work. It does not supersede this document's baseline-first
+> progression or change the initial High/Low benchmark.
+>
 > **Status:** Research direction and proposed experimental requirements;
 > the network mechanisms described below are not implemented yet.
 >
@@ -646,6 +652,14 @@ The staged funnel adds a compatible principle:
 
 > Expensive cognitive work should occur only after cheap mechanisms
 > establish that it is necessary.
+
+The [SpikingBrain-inspired input](djn-research-input-spikingbrain.md)
+suggests future comparisons of fixed versus state-adaptive Judge
+thresholds, flat versus group routing, and bounded extra waves for valid
+but difficult samples. These are DJN hypotheses at the Judge-network
+level, not results or model-internal mechanisms transferred from the
+paper. Missing critical data remains a deterministic gate failure and
+produces `SKIP` before Judge execution.
 
 ## 26. Guidance for Claude Code and Codex
 

@@ -18,8 +18,10 @@ landed on `main`). Check `git rev-parse --short HEAD` for the current commit.
   (`venv/bin/pytest`) and `black`/`ruff` were clean.
 - Research background lives in
   `docs/context/dynamic-judge-network-context.md` and its refinement,
-  `docs/context/djn-research-direction-update.md` (read both before any
-  new spec — the update controls where the original roadmap differs).
+  `docs/context/djn-research-direction-update.md`. The supplementary
+  `docs/context/djn-research-input-spikingbrain.md` adds candidate
+  later-stage hypotheses (read all three before a new research spec;
+  the direction update controls where the original roadmap differs).
 - The browser showcase (`index.html`, `assets/`) is a synthetic,
   dependency-free explainer of gates, waves, Evidence State, and
   `HIGH`/`LOW`/`SKIP`. The checked-in HTML embeds its assets so a single
@@ -49,6 +51,26 @@ landed on `main`). Check `git rev-parse --short HEAD` for the current commit.
   multi-Judge; E dynamic DJN; F frontier LLM reference. Earlier A–E
   labels remain only in historical specs/commits. Ablate one mechanism
   at a time; do not assign later experiment numbers until their specs exist.
+
+## SpikingBrain-inspired research input
+
+- The paper's adaptive spiking and sparsity are model-internal findings;
+  DJN's adaptive Judge thresholds, group routing, confirmation
+  suppression, counter-evidence bias, and bounded bursts are untested
+  network-level hypotheses. Do not transfer its numerical results or
+  introduce SNN dependencies.
+- Keep Experiment 1 fixed and baseline-first. Later dynamic studies can
+  compare all-on, fixed-threshold, and adaptive-threshold routing. Add
+  counter-threshold adjustments only after a counter-evidence baseline;
+  isolate group selection and bursts. Learned policies require prior
+  measurements.
+- Measure distinct attempted versus activated Judge sparsity separately
+  against a logged candidate pool. Keep fetched and used counts distinct.
+  Report accuracy, coverage, latency, provider calls, and cost alongside
+  sparsity; speculative fetches still incur work.
+- Critically missing input data remains a deterministic gate failure
+  returning `SKIP` before any Judge. Extra waves are candidates only for
+  valid but difficult inputs.
 
 ## Confirmed decisions (do not re-litigate without new information)
 
@@ -91,6 +113,6 @@ simple fixed-average baseline.
   warrant a separate implementation spec (foundation spec §10).
 - Graph/aggregation/runtime/experiments/metrics/escalation are all still
   stub `README.md` files under `src/` — untouched by design (spec §10).
-- No schema or runtime changes were made for the research update. Wave,
-  Evidence State, activated/used logging, and actionability semantics
-  remain future design work.
+- No schema or runtime changes were made for either research input. Wave,
+  Evidence State, activated/used logging, adaptive thresholds, group
+  routing, bursts, and actionability semantics remain future design work.

@@ -224,6 +224,13 @@ Experiment 1 still starts with fixed Judges and simple averaging; later
 specs will assign each additional comparison and mechanism to a discrete
 ablation. None of the comparison harness is built yet (see Status).
 
+The [SpikingBrain-inspired research input](docs/context/djn-research-input-spikingbrain.md)
+adds candidate later studies of fixed versus adaptive Judge thresholds,
+flat versus group routing, and bounded extra waves for difficult inputs.
+They do not change Experiment 1. Judge execution sparsity must be read
+with accuracy, coverage, latency, provider calls, and cost; fetching a
+speculative answer still incurs work even if the Judge is not activated.
+
 Results will be read as an **accuracy–coverage curve** rather than a
 single accuracy number: raising the confidence threshold for a decision
 should raise accuracy on the answered subset while lowering coverage
@@ -379,15 +386,23 @@ any of them:
   hold and process only what its narrow question requires, not a large
   fixed context — the specific technique (entropy-based byte patching)
   does not transfer to Judge design directly.
+- **Event-driven sparse model computation.** SpikingBrain reports
+  adaptive-threshold spiking and sparse activity *inside* a neural model.
+  DJN's separate hypothesis is that Evidence State could regulate which
+  heterogeneous Judges run next, including counter-evidence and bounded
+  bursts for difficult inputs. Its model-level sparsity and efficiency
+  figures are not DJN results, and DJN does not propose an SNN.
 
 Sources: [Sakana Fugu](https://sakana.ai/fugu-beta/) ·
 [AB-MCTS](https://sakana.ai/ab-mcts/) ·
 [The connectome of an insect brain (Science)](https://www.science.org/doi/10.1126/science.add9330) ·
 [Whole-Brain Connectomic Graph Model Enables Whole-Body Locomotion Control in Fruit Fly](https://arxiv.org/pdf/2602.17997) ·
-[Byte Latent Transformer: Patches Scale Better Than Tokens](https://arxiv.org/abs/2412.09871)
+[Byte Latent Transformer: Patches Scale Better Than Tokens](https://arxiv.org/abs/2412.09871) ·
+[SpikingBrain: Spiking Brain-inspired Large Models, v4](https://arxiv.org/abs/2509.05276v4)
 
 ## Further reading
 
 - [`docs/context/dynamic-judge-network-context.md`](docs/context/dynamic-judge-network-context.md) — the research context and question list, with revised baseline labels and ablation progression.
 - [`docs/context/djn-research-direction-update.md`](docs/context/djn-research-direction-update.md) — the current research refinement, novelty boundary, baseline taxonomy, and proposed future logging requirements.
+- [`docs/context/djn-research-input-spikingbrain.md`](docs/context/djn-research-input-spikingbrain.md) — source-bounded SpikingBrain inspiration and candidate adaptive-threshold, hierarchy, sparsity, and burst ablations.
 - [`docs/superpowers/specs/`](docs/superpowers/specs/) — approved specs and design history.

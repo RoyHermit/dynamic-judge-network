@@ -13,6 +13,12 @@
 > revised labels and progression; the update has the detailed rationale.
 > The approved foundation spec and its implementation remain historical
 > records of the scope completed at that time.
+>
+> **Additional research input (2026-10-02):** Read the
+> [SpikingBrain-inspired DJN input](djn-research-input-spikingbrain.md)
+> as a source of candidate later-stage hypotheses. It does not change the
+> fixed-Judge first experiment, imply that DJN implements spiking neurons,
+> or transfer the paper's measured results to DJN.
 
 ---
 
@@ -367,6 +373,31 @@ unused path     -> prune candidate
 
 これにより問題ごとに有効な「思考回路」が形成される可能性を検証する。
 
+### 7.7 Adaptive activation hypotheses (future)
+
+The [SpikingBrain-inspired input](djn-research-input-spikingbrain.md)
+motivates tests at the *Judge network* level, distinct from the paper's
+model-internal spiking mechanisms:
+
+- Compare fixed Judge activation thresholds with deterministic thresholds
+  adjusted by the current Evidence State, uncertainty, disagreement,
+  expected information value, and remaining budget.
+- Test whether strong directional consensus should make redundant
+  supporting Judges harder to activate while making counter-evidence
+  Judges easier to activate. Compare both choices against fixed-threshold
+  controls; neither benefit is assumed.
+- Test group selection against flat Judge routing only after a useful
+  Judge pool exists. Treat group selection and per-Judge selection as
+  separate mechanisms in an ablation.
+- Permit temporary extra waves for valid but conflicting, unusual, or
+  high-risk inputs, subject to a budget and a measured benefit. Critically
+  missing data still stops at the deterministic sufficiency gate with
+  `SKIP`; it is not a reason to run additional Judges.
+
+Start with inspectable rules and log their inputs and decisions. Learned
+thresholds and routing belong after fixed baselines and sufficient data.
+Judge sparsity is a measurement, not a goal to maximize on its own.
+
 ---
 
 ## 8. 速度に関する仮説
@@ -616,6 +647,22 @@ comparison boundaries before results are attributed to a mechanism.
 - CPU/GPU usage where practical
 - API cost where applicable
 
+### Sparse execution (later dynamic studies)
+
+Record the candidate Judge pool and its version for each comparison.
+Define `judge_sparsity` as one minus the number of distinct Judges whose
+questions were attempted divided by the available Judge count. Define
+`activation_sparsity` with distinct activated Judges over the same
+denominator. Keep fetched and used counts separate, and log retries and
+provider requests independently. When group routing exists, define
+group sparsity against a declared candidate-group pool. Handle an empty
+pool explicitly rather than dividing by zero. Report gate-failed inputs
+separately so no-execution `SKIP` cases do not inflate the apparent
+benefit of routing. Speculative fetching can make activation sparsity
+look high without reducing provider work; report requests, latency, and
+cost alongside these ratios. Any weighted compute sparsity metric needs
+an explicit dense comparator and actual or defensible cost weights.
+
 Attempted questions, fetched answers, activated Judges, and used evidence
 are distinct. See [Research Direction Update](djn-research-direction-update.md)
 §§9–13 and 21 for the proposed measurement model. The current foundation
@@ -691,6 +738,14 @@ list is in [Research Direction Update §21](djn-research-direction-update.md#21-
 These are future logging requirements, not a description of the current
 foundation schema.
 
+For later threshold, group-routing, and burst ablations, also preserve
+the candidate pool, group membership, base and adjusted thresholds,
+activation scores, adjustment/suppression reasons, burst trigger, and
+budget state. Add these fields when the corresponding mechanism is
+specified; they are not claims about the current storage schema. See the
+[SpikingBrain-inspired input](djn-research-input-spikingbrain.md) for
+candidate research questions and fields.
+
 ---
 
 ## 15. Ablation Test
@@ -720,6 +775,16 @@ required logs.
 Compare changes in accuracy, latency, attempted/fetched/activated/used
 Judge counts, coverage, error correlation, wave count, and cost under the
 same data protocol.
+
+The SpikingBrain-inspired threshold study is a later candidate within
+dynamic activation, not a replacement for Experiment 1 or the A–F
+baselines. Establish simple fixed-threshold dynamic routing before
+testing state-adaptive thresholds against the same all-on and fixed
+controls. Test counter-evidence threshold adjustment only after a
+counter-evidence baseline exists; isolate group routing and burst
+execution in their own comparisons. Learned policies follow only if
+simpler policies have measured value. Read any sparsity gain with
+accuracy, calibration, coverage, latency, provider calls, and cost.
 
 ---
 
