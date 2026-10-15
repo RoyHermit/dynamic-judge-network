@@ -208,14 +208,17 @@ after the pilot and recorded in an addendum to this spec.
 2. Calibrator (initial choice: isotonic) fitted on `calib` only, **one per
    arm**. Inputs outside the fitted range are clamped to the nearest fitted
    value (no extrapolation).
-3. Decision on calibrated p with margin m: `HIGH` if `p ≥ 0.5 + m`, `LOW`
-   if `p ≤ 0.5 − m`, otherwise `SKIP`. Boundaries are inclusive on the
-   HIGH/LOW side and defined in one place in code.
-4. m is chosen on `thresh` as the smallest margin whose coverage is **at
-   least** the target (e.g. 100%, 80%, 60%). Isotonic plateaus can make a
-   target unattainable exactly; targets are therefore approximate. Plateau
-   ties are broken deterministically by taking the first margin on a
-   fixed ascending grid that meets the target.
+3. Decision on calibrated p with margin m ≥ 0: `HIGH` if `p ≥ 0.5 + m`
+   **and** `p > 0.5`; `LOW` if `p ≤ 0.5 − m` **and** `p < 0.5`; otherwise
+   `SKIP`. Boundaries are inclusive for m > 0, and `p = 0.5` is always
+   `SKIP` (so the two branches are mutually exclusive at m = 0). Defined in
+   one place in code.
+4. Coverage is non-increasing in m. m is chosen on `thresh` as the
+   **largest** margin on a fixed ascending grid whose coverage is **at
+   least** the target (e.g. 100%, 80%, 60%). Because `p = 0.5` is always
+   `SKIP` and isotonic plateaus make some targets unattainable exactly,
+   targets are approximate and an arm may fail to reach a target (reported
+   as such; the largest-coverage margin, m = 0, is then used).
 5. Calibrators and margins are frozen and written to `config_json` before
    `test` and `test_shift` are scored.
 6. Comparisons use the **achieved** coverage on the evaluated split (frozen
@@ -274,17 +277,20 @@ replica mapping.
 Usage semantics follow direction-update §11 and are **per replica row**,
 not assumed equal:
 
-- *requested*: a replica was included in a request (every replica of a
-  valid run);
-- *fetched*: a valid answer came back (absent when the call failed or the
-  SDK dropped the answer);
+- *requested*: a replica was included in a request;
+- *fetched* (provider-evaluated, compute incurred): true for every replica
+  of a request whose call succeeded, **including** replicas whose answer
+  the SDK dropped; **unknown** (not false) for replicas of a failed call,
+  because the provider may or may not have executed it;
+- *returned*: a `judge_logs` row exists for the replica;
+- *valid*: returned, `interpret` succeeded, and the probability is in
+  [0, 1];
 - *activated*: always true in A/C (fixed execution, no gating);
 - *used*: the replica's value entered the aggregate (`judge_logs.was_used`
-  = 1); an otherwise valid replica of an invalid sample has
-  `was_used = 0`.
+  = 1); a valid replica of an invalid sample has `was_used = 0`.
 
-Only `was_used` exists as a column today; the other three are derived from
-`calls.status`, presence of a `judge_logs` row, and `interpret_error`
+Only `was_used` exists as a column today; the other states are derived
+from `calls.status`, presence of a `judge_logs` row, and `interpret_error`
 rather than new columns. The writer populates `was_used` after
 aggregation, as part of the extensions in §3.2.
 
@@ -305,14 +311,15 @@ aggregation, as part of the extensions in §3.2.
 `call_id` is a fresh UUID, so resumption keys on the logical unit
 `(experiment_id, input_id)` for batched C, A runs, and on
 `(experiment_id, input_id, replica)` for separate C. A unit is **complete**
-when its call is recorded and either all expected `judge_logs` rows exist
-or the call is recorded as `status="error"` (a terminal failure; failed
-calls are not retried automatically, so a re-run does not pay again).
+when its call is recorded in `calls`, whatever the status: success
+(possibly with fewer `judge_logs` rows than questions, since `record_call`
+persists the call and the available answers together) or `status="error"`
+(a terminal failure). Failed calls and dropped answers are not retried
+automatically, so a re-run never pays again for a recorded call and
+retries are never selective.
 
 - Stored `judge_logs` rows whose interpretation is missing are
   re-interpreted from the stored raw answer, with no new API call.
-- A batched call that returned only some answers is complete (the missing
-  replicas are terminal drops, §9 table).
 - Unavoidable window: a crash between the provider response and the
   `record_call` write loses that paid call; on resume the unit is re-run.
   This is accepted; such calls are not detectable, so the cost report
