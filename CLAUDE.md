@@ -39,6 +39,11 @@ Core rule are discovered by their own trigger description instead.
   tool's personal/local memory, which is invisible to anyone else who clones
   the repository. See the `context-checkpoint` skill.
 
+## Research Context
+- For research or design work, enter through `docs/knowledge/index.md`
+  (authority order, section index); read sections by number, not whole
+  files. When research docs conflict, the higher row in that index wins.
+
 ## Web Search
 - Web search is limited to general technical research (official docs, library
   specs, error debugging).
