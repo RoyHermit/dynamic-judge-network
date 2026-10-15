@@ -9,8 +9,9 @@ No commits to `main`; push is human-only.
   `docs/superpowers/plans/2026-09-27-project-foundation.md`.
 - Verified 2026-10-15: pytest 30/30; `black`/`ruff` clean. All four
   research docs are on `origin/main` (94e08c7); README links them.
-- Research docs in `docs/context/`, read in order (direction update
-  controls conflicts): `dynamic-judge-network-context.md`,
+- Start research/design work at `docs/knowledge/index.md` (authority order
+  and section index; read sections, not whole files). Research docs in
+  `docs/context/`, read in order (direction update controls conflicts): `dynamic-judge-network-context.md`,
   `djn-research-direction-update.md`, `djn-research-input-spikingbrain.md`,
   `djn-research-input-decision-model-abstraction.md`.
 - `index.html` + `assets/`: synthetic showcase, not the runtime
