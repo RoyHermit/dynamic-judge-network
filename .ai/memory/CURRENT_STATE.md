@@ -1,17 +1,17 @@
 # Current State — Dynamic Judge Network
 
-Branch: `git branch --show-current`. No commits to `main`; push is human-only.
+No commits to `main`; push is human-only.
 
 ## Where things stand
 
 - Foundation spec and plan are implemented on `main`:
   `docs/superpowers/specs/2026-09-27-project-foundation-design.md`,
   `docs/superpowers/plans/2026-09-27-project-foundation.md`.
-- Verified 2026-10-15: pytest 30/30; `black --check`, `ruff check` clean.
-- Research docs, read in order (the direction update controls conflicts):
-  `docs/context/dynamic-judge-network-context.md`,
-  `djn-research-direction-update.md`,
-  `djn-research-input-spikingbrain.md`,
+- Verified 2026-10-15: pytest 30/30; `black`/`ruff` clean. All four
+  research docs are on `origin/main` (94e08c7); README links them.
+- Research docs in `docs/context/`, read in order (direction update
+  controls conflicts): `dynamic-judge-network-context.md`,
+  `djn-research-direction-update.md`, `djn-research-input-spikingbrain.md`,
   `djn-research-input-decision-model-abstraction.md`.
 - `index.html` + `assets/`: synthetic showcase, not the runtime
   (`node scripts/build-showcase.mjs` regenerates it).
@@ -35,7 +35,7 @@ Branch: `git branch --show-current`. No commits to `main`; push is human-only.
   provider output and provenance (not stored today); calibrate per
   provider on validation data only; provider axis is separate from A–F.
   Dynamic provider selection and OpenAI Decisions (beta) are deferred;
-  primary-source URLs still need pinning.
+  primary-source URLs still need pinning. Showcase intentionally unchanged.
 
 ## Confirmed decisions (do not re-litigate without new information)
 
