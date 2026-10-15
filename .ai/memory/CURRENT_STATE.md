@@ -9,10 +9,8 @@ No commits to `main`; push is human-only.
   `docs/superpowers/plans/2026-09-27-project-foundation.md`.
 - Verified 2026-10-15: pytest 30/30; `black`/`ruff` clean. All four
   research docs and the rules import (91b317f) are on `origin/main`.
-- Rules imported from a sibling project: `rm -rf` guard hook
-  (`.ai/hooks/`, wired in `.claude/settings.json`), compact
-  `context-checkpoint` skill, `.ai/memory/TASKS.md` (task source of
-  truth), and `CLAUDE.md` "Research Context" rule.
+- Imported rules: `rm -rf` guard (`.ai/hooks/`), compact
+  `context-checkpoint` skill, `TASKS.md` (task source of truth).
 - Start research/design work at `docs/knowledge/index.md` (authority order
   and section index; read sections, not whole files). Research docs in
   `docs/context/`, read in order (direction update controls conflicts):
