@@ -50,11 +50,6 @@ No commits to `main`; push is human-only.
 
 ## Next step
 
-Not started: brainstorm + spec **Experiment 1: Fixed Judges + Average**,
-Jev only, on the existing `Judge`/`JevStageExecutor`, no dynamic
-activation. Resolve fixed baselines under A–F, the High/Low ground truth
-and data pipeline (`src/data/` is a stub), and Judge roles
-(`src/judges/definitions/`). Pin hypothesis, metrics, ablation, and logs
-(attempts, fetched answers, latency, coverage, calibration, `SKIP`). Keep
-B and D out of the simple fixed-average baseline. Graph, aggregation,
-runtime, experiments, metrics, escalation remain stubs.
+See `TASKS.md` (source of truth for tasks). Not started: Experiment 1,
+Fixed Judges + Average. Graph, aggregation, runtime, experiments,
+metrics, escalation remain stubs.
