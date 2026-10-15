@@ -234,6 +234,13 @@ They do not change Experiment 1. Judge execution sparsity must be read
 with accuracy, coverage, latency, provider calls, and cost; fetching a
 speculative answer still incurs work even if the Judge is not activated.
 
+The [decision model abstraction input](docs/context/djn-research-input-decision-model-abstraction.md)
+is a non-binding supplement on provider-neutral Judges: a Judge is a
+logical role rather than a provider or request, and an Activation Wave is
+not a provider request. It adds candidate later studies that separate
+provider effects from architecture effects. The provider axis is separate
+from the A–F baselines, and Experiment 1 stays Jev-only.
+
 Results will be read as an **accuracy–coverage curve** rather than a
 single accuracy number: raising the confidence threshold for a decision
 should raise accuracy on the answered subset while lowering coverage
@@ -408,4 +415,5 @@ Sources: [Sakana Fugu](https://sakana.ai/fugu-beta/) ·
 - [`docs/context/dynamic-judge-network-context.md`](docs/context/dynamic-judge-network-context.md) — the research context and question list, with revised baseline labels and ablation progression.
 - [`docs/context/djn-research-direction-update.md`](docs/context/djn-research-direction-update.md) — the current research refinement, novelty boundary, baseline taxonomy, and proposed future logging requirements.
 - [`docs/context/djn-research-input-spikingbrain.md`](docs/context/djn-research-input-spikingbrain.md) — source-bounded SpikingBrain inspiration and candidate adaptive-threshold, hierarchy, sparsity, and burst ablations.
+- [`docs/context/djn-research-input-decision-model-abstraction.md`](docs/context/djn-research-input-decision-model-abstraction.md) — non-binding provider-neutral Judge abstraction, provider-versus-architecture comparison design, and batching-versus-sparsity questions.
 - [`docs/superpowers/specs/`](docs/superpowers/specs/) — approved specs and design history.
