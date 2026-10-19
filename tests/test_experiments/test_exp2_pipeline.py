@@ -5,6 +5,7 @@ import json
 import pytest
 from helpers_exp1 import insert_judge_log
 
+from src.aggregation.core import choose_margin, margin_grid
 from src.data.schema import Sample
 from src.experiments.exp2_config import Exp2Config
 from src.experiments.exp2_pipeline import (
@@ -136,9 +137,12 @@ async def test_isotonic_is_sensitivity_only(env):
     calib = _dataset(conn, "c", "calib")
     thresh = _dataset(conn, "t", "thresh")
     fit = await fit_exp2_arm(conn, writer, EID, 4, calib, thresh, Exp2Config())
+    before = fit.model_dump()
     platt = [r.p for r in score_exp2(conn, fit, thresh)]
     iso = [r.p for r in score_exp2(conn, fit, thresh, calibrator="isotonic")]
     assert platt != iso
+    # scoring with isotonic never alters the fit (margins/platt stay Platt-based)
+    assert fit.model_dump() == before
     cfg = Exp2Config()
     assert set(fit.margins) == {cfg.target_key(t) for t in cfg.coverage_targets}
 
@@ -149,15 +153,50 @@ async def test_margins_use_thresh_not_calib(env):
     calib = _dataset(conn, "c", "calib")
     thresh = _dataset(conn, "t", "thresh")
     base = fit_unfrozen(conn, EID, 4, calib, thresh, cfg, frozenset())
-    flipped_thresh = [
-        s.model_copy(update={"label": "LOW" if s.label == "HIGH" else "HIGH"})
-        for s in thresh
-    ]
-    same = fit_unfrozen(conn, EID, 4, calib, flipped_thresh, cfg, frozenset())
-    assert same.platt == base.platt
+    # margins equal choose_margin on Platt p of the thresh means
+    tm = subset_means(conn, EID, 4, thresh)
+    ps = [base.platt.predict(m) for m in tm.values() if m is not None]
+    grid = margin_grid(cfg.margin_step)
+    for t in cfg.coverage_targets:
+        assert base.margins[cfg.target_key(t)] == choose_margin(ps, t, grid)
+    # different thresh answers: margins change, calibrators do not
+    thresh2 = []
+    for i in range(8):
+        _answers(conn, f"u{i}", [0.5 + 0.06 * i] * 4)
+        thresh2.append(_sample(f"u{i}", "HIGH" if i % 2 else "LOW", "thresh"))
+    other = fit_unfrozen(conn, EID, 4, calib, thresh2, cfg, frozenset())
+    assert other.margins != base.margins
+    assert other.platt == base.platt and other.isotonic == base.isotonic
+    # different calib: platt changes
     flipped_calib = [
         s.model_copy(update={"label": "LOW" if s.label == "HIGH" else "HIGH"})
         for s in calib
     ]
-    other = fit_unfrozen(conn, EID, 4, flipped_calib, thresh, cfg, frozenset())
-    assert other.platt != base.platt
+    changed = fit_unfrozen(conn, EID, 4, flipped_calib, thresh, cfg, frozenset())
+    assert changed.platt != base.platt
+
+
+async def test_fit_unfrozen_writes_nothing_and_threads_exclusion(env):
+    conn, _ = env
+    cfg = Exp2Config()
+    judges = [*ROLES, "role_extra"]
+    calib, thresh = [], []
+    for split, out in (("calib", calib), ("thresh", thresh)):
+        for i, (m, lab) in enumerate(
+            [(0.1, "LOW"), (0.3, "LOW"), (0.5, "HIGH"), (0.4, "LOW"), (0.8, "HIGH")]
+        ):
+            iid = f"{split}{i}"
+            _answers(conn, iid, [m, 0.99, m, m, m], judges)
+            out.append(_sample(iid, lab, split))
+    excl = frozenset({"role_volatility"})
+    fit = fit_unfrozen(conn, EID, 4, calib, thresh, cfg, excl)
+    cfg_json = json.loads(
+        conn.execute("SELECT config_json FROM experiments").fetchone()[0]
+    )
+    assert "frozen" not in cfg_json
+    assert fit.exclude_judges == ["role_volatility"] and not fit.degenerate
+    rows = score_exp2(conn, fit, calib)
+    assert all(r.p is not None for r in rows)
+    # without exclusion five answers exist -> invalid for n_expected=4
+    full = fit_unfrozen(conn, EID, 4, calib, thresh, cfg, frozenset())
+    assert full.degenerate
