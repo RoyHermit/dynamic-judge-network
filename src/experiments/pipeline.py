@@ -60,7 +60,13 @@ async def fit_arm(
         for s in calib
         if means[s.input_id] is not None
     ]
-    calibrator = IsotonicCalibrator.fit([p for p, _ in pairs], [y for _, y in pairs])
+    # With no valid calibration sample the arm cannot produce any valid row;
+    # freeze an explicit degenerate fit so the report can still say so.
+    calibrator = (
+        IsotonicCalibrator.fit([p for p, _ in pairs], [y for _, y in pairs])
+        if pairs
+        else IsotonicCalibrator([0.0], [0.5])
+    )
     thresh_means = raw_means(conn, experiment_id, n_expected, thresh)
     thresh_ps = [calibrator.predict(m) for m in thresh_means.values() if m is not None]
     grid = margin_grid(cfg.margin_step)
@@ -69,7 +75,11 @@ async def fit_arm(
         n_expected=n_expected,
         calibrator=calibrator.to_dict(),
         margins={
-            cfg.target_key(t): choose_margin(thresh_ps, t, grid)
+            cfg.target_key(t): (
+                choose_margin(thresh_ps, t, grid)
+                if thresh_ps
+                else MarginChoice(margin=grid[0], achieved=0.0, reached=False)
+            )
             for t in cfg.coverage_targets
         },
     )

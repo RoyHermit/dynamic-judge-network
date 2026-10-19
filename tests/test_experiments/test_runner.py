@@ -147,3 +147,20 @@ async def test_pending_interpretations_are_finished_without_new_calls(env):
     await finish_pending_interpretations(conn, writer, spec)
     value = conn.execute("SELECT interpreted_value FROM judge_logs").fetchone()[0]
     assert value == 0.8
+
+
+async def test_resuming_with_a_different_data_or_model_config_is_refused(env, samples):
+    conn, writer = env
+    executor = JevStageExecutor(FakeJevClient(), writer)
+    spec = ArmSpec(study_id="s", arm="A", horizon=5)
+    extra = {"data": {"seed": 1}, "requested_model": "m1", "extra_body": None}
+    await run_arm(spec, samples, executor, writer, conn, config_extra=extra)
+    # same identity resumes fine and runs nothing new
+    assert await run_arm(spec, samples, executor, writer, conn, config_extra=extra) == 0
+    for changed in (
+        {**extra, "data": {"seed": 2}},
+        {**extra, "requested_model": "m2"},
+        {**extra, "extra_body": {"temperature": 1.0}},
+    ):
+        with pytest.raises(ValueError, match="different"):
+            await run_arm(spec, samples, executor, writer, conn, config_extra=changed)

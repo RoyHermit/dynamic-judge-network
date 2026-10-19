@@ -18,6 +18,15 @@ class CallRow(BaseModel):
     token_usage: dict | None = None
 
 
+def load_experiment_config(conn: sqlite3.Connection, experiment_id: str) -> dict | None:
+    """Stored `config_json` of an experiment, or None if it does not exist."""
+    row = conn.execute(
+        "SELECT config_json FROM experiments WHERE experiment_id = ?",
+        (experiment_id,),
+    ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
 def completed_units(
     conn: sqlite3.Connection, experiment_id: str
 ) -> set[tuple[str, int]]:

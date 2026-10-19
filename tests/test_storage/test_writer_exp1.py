@@ -23,6 +23,15 @@ async def test_record_experiment_is_idempotent(env):
     assert len(rows) == 1 and json.loads(rows[0][0]) == {"a": 1}
 
 
+async def test_load_experiment_config_returns_stored_config(env):
+    conn, writer = env
+    await writer.record_experiment("e1", {"a": 1})
+    from src.storage.reader import load_experiment_config
+
+    assert load_experiment_config(conn, "e1") == {"a": 1}
+    assert load_experiment_config(conn, "missing") is None
+
+
 async def test_freeze_config_merges_and_refuses_overwrite(env):
     conn, writer = env
     await writer.record_experiment("e1", {"a": 1})

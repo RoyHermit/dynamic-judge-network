@@ -11,7 +11,11 @@ from pydantic import BaseModel
 from src.data.schema import Sample
 from src.judges.definitions.high_low import HighLowJudge, replica_index
 from src.judges.interface import JudgeExecutor
-from src.storage.reader import completed_units, pending_interpretations
+from src.storage.reader import (
+    completed_units,
+    load_experiment_config,
+    pending_interpretations,
+)
 from src.storage.writer import SqliteStorageWriter
 
 
@@ -37,6 +41,23 @@ class ArmSpec(BaseModel):
         if self.topology == "batched":
             return [(0, replicas)]
         return [(k, [judge]) for k, judge in enumerate(replicas)]
+
+
+# Keys that define what a stored answer means; resuming with different values
+# would pair old answers with a new dataset or model (spec §9.1).
+_IDENTITY_KEYS = ("data", "requested_model", "extra_body")
+
+
+def _check_identity(
+    conn: sqlite3.Connection, experiment_id: str, config: dict[str, Any]
+) -> None:
+    stored = load_experiment_config(conn, experiment_id) or {}
+    for key in _IDENTITY_KEYS:
+        if key in config and key in stored and stored[key] != config[key]:
+            raise ValueError(
+                f"experiment {experiment_id!r} was created with a different "
+                f"{key!r}; use another study_id instead of resuming"
+            )
 
 
 class _Budget:
@@ -92,6 +113,7 @@ async def run_arm(
         **(config_extra or {}),
     }
     await writer.record_experiment(spec.experiment_id, config)
+    _check_identity(conn, spec.experiment_id, config)
     await finish_pending_interpretations(conn, writer, spec)
     done = completed_units(conn, spec.experiment_id)
     budget = _Budget(max_units)

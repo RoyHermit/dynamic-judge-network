@@ -22,8 +22,13 @@ from src.metrics.core import (
 from src.storage.reader import CallRow, completion_latency
 
 
-def arm_cost(calls: list[CallRow], pricing: Pricing | None) -> dict[str, Any]:
-    """Token totals and cost; cost is None (never estimated) without pricing."""
+def arm_cost(
+    calls: list[CallRow], pricing: Pricing | None, n_inputs: int | None = None
+) -> dict[str, Any]:
+    """Token totals and cost; cost is None (never estimated) without pricing.
+
+    `cost_usd_per_input` divides by the number of evaluated inputs.
+    """
     tokens_in = tokens_out = missing = 0
     for call in calls:
         usage = call.token_usage
@@ -42,6 +47,9 @@ def arm_cost(calls: list[CallRow], pricing: Pricing | None) -> dict[str, Any]:
         "output_tokens": tokens_out,
         "calls_without_usage": missing,
         "cost_usd": cost,
+        "cost_usd_per_input": (
+            cost / n_inputs if cost is not None and n_inputs else None
+        ),
     }
 
 
@@ -67,6 +75,9 @@ def _arm_summary(
         for key, c in fit.margins.items()
     }
     headline = fit.margins[cfg.target_key(cfg.headline_coverage)].margin
+    # One experiment holds calls for every split; keep only evaluated inputs.
+    evaluated = {r.input_id for r in rows}
+    calls = [c for c in calls if c.input_id in evaluated]
     latencies = list(completion_latency(calls).values())
     n_valid = sum(r.p is not None for r in rows)
     return {
@@ -83,7 +94,7 @@ def _arm_summary(
         },
         "latency_p50": percentile(latencies, 0.5) if latencies else None,
         "latency_p95": percentile(latencies, 0.95) if latencies else None,
-        "cost": arm_cost(calls, cfg.pricing),
+        "cost": arm_cost(calls, cfg.pricing, len(rows)),
     }
 
 
@@ -170,22 +181,64 @@ def compare_arms(
     return report
 
 
+def _fmt(value: Any) -> str:
+    return f"{value:.4g}" if isinstance(value, float) else str(value)
+
+
 def render_markdown(report: dict[str, Any]) -> str:
-    """Compact text report: warnings first, then the common-set table."""
+    """Text report: warnings, headline table, per-arm detail, references."""
     lines = ["# Experiment 1 report", ""]
     for warning in report["warnings"]:
         lines.append(f"> WARNING: {warning}")
     lines += [
         f"labelled: {report['n_labelled']}, common valid: {report['n_common_valid']}",
         "",
-        "| target | A acc | A cov | C acc | C cov | C-A 95% CI |",
-        "|---|---|---|---|---|---|",
+        "## Common valid set (headline A vs C)",
+        "",
+        "| target | A acc | A cov | C acc | C cov | matched A | matched C | C-A 95% CI |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for key, row in report["common"]["targets"].items():
         a, c = row["A"], row["C"]
         lines.append(
-            f"| {key} | {a['accuracy']} | {a['coverage_valid']} | "
-            f"{c['accuracy']} | {c['coverage_valid']} | {row['diff_ci']} |"
+            f"| {key} | {_fmt(a['accuracy'])} | {_fmt(a['coverage_valid'])} | "
+            f"{_fmt(c['accuracy'])} | {_fmt(c['coverage_valid'])} | "
+            f"{_fmt(row['matched_accuracy_A'])} | {_fmt(row['matched_accuracy_C'])} | "
+            f"{row['diff_ci']} |"
         )
+    for name, arm in report["arms"].items():
+        cost = arm["cost"]
+        lines += [
+            "",
+            f"## Arm {name} (own valid set)",
+            "",
+            (
+                f"n_valid: {arm['n_valid']}/{arm['n_rows']}, "
+                f"invalid_rate: {_fmt(arm['invalid_rate'])}, "
+                f"brier: {_fmt(arm['brier'])}, log_loss: {_fmt(arm['log_loss'])}"
+            ),
+            (
+                f"latency_p50: {_fmt(arm['latency_p50'])}, "
+                f"latency_p95: {_fmt(arm['latency_p95'])}, "
+                f"cost_usd: {_fmt(cost['cost_usd'])}, "
+                f"cost_usd_per_input: {_fmt(cost['cost_usd_per_input'])}, "
+                f"calls_without_usage: {cost['calls_without_usage']}"
+            ),
+            "",
+            "| target | margin | reached | acc | cov (valid) | cov (all) | acted |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for key, t in arm["targets"].items():
+            lines.append(
+                f"| {key} | {_fmt(t['margin'])} | {t['reached_target']} | "
+                f"{_fmt(t['accuracy'])} | {_fmt(t['coverage_valid'])} | "
+                f"{_fmt(t['coverage_all'])} | {t['n_acted']} |"
+            )
+        lines += ["", "by regime at the headline margin:"]
+        for regime, r in arm["by_regime_headline"].items():
+            lines.append(
+                f"- regime {regime}: acc {_fmt(r['accuracy'])}, "
+                f"cov (all) {_fmt(r['coverage_all'])}"
+            )
     lines += ["", "```json", json.dumps(report["references"], indent=2), "```"]
     return "\n".join(lines)

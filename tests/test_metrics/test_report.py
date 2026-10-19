@@ -76,3 +76,44 @@ def test_arm_cost_uses_pricing_and_reports_missing_usage():
     cost = arm_cost(calls, Pricing(input_per_mtok=2.0, output_per_mtok=4.0))
     assert cost["cost_usd"] == 4.0 and cost["calls_without_usage"] == 1
     assert arm_cost(calls, None)["cost_usd"] is None
+
+
+def test_calls_of_unevaluated_samples_are_excluded_from_cost_and_latency():
+    rows = _rows([(0.9, "HIGH"), (0.2, "LOW")])
+    usage = {"input_tokens": 1_000_000, "output_tokens": 0}
+    calls = [
+        CallRow(
+            input_id=f"i{k}",
+            stage_index=0,
+            latency=1.0,
+            status="success",
+            token_usage=usage,
+        )
+        for k in (0, 1, 7, 8, 9)  # i7-i9 belong to other splits
+    ]
+    cfg = CFG.model_copy(
+        update={"pricing": Pricing(input_per_mtok=1.0, output_per_mtok=0.0)}
+    )
+    report = compare_arms(
+        rows, rows, _fit("A", 0.1), _fit("C", 0.1), cfg, calls_a=calls, calls_c=calls
+    )
+    cost = report["arms"]["A"]["cost"]
+    assert cost["cost_usd"] == 2.0  # only i0 and i1
+    assert cost["cost_usd_per_input"] == 1.0
+
+
+def test_markdown_shows_per_arm_quality_cost_and_matched_coverage():
+    rows = _rows([(0.9, "HIGH"), (0.2, "LOW"), (0.8, "HIGH")])
+    report = compare_arms(
+        rows, rows, _fit("A", 0.1), _fit("C", 0.1), CFG, calls_a=[], calls_c=[]
+    )
+    text = render_markdown(report)
+    for needle in (
+        "brier",
+        "log_loss",
+        "invalid_rate",
+        "cost_usd",
+        "matched",
+        "regime",
+    ):
+        assert needle in text

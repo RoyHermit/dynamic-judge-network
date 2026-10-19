@@ -1,5 +1,6 @@
 """Whole pipeline against a state-aware fake client (no real API)."""
 
+import asyncio
 import zlib
 
 import pytest
@@ -110,18 +111,37 @@ async def test_pipeline_end_to_end(tmp_path):
     assert "Experiment 1 report" in render_markdown(report)
 
 
-async def test_dropped_replicas_make_every_c_sample_invalid(tmp_path):
+async def test_dropped_replicas_make_every_c_sample_invalid_but_still_report(tmp_path):
     conn = db.connect(tmp_path / "t.db")
     writer = SqliteStorageWriter(conn)
     source = SyntheticSource(CFG.data)
+    spec_a = ArmSpec(study_id="e", arm="A", horizon=5)
     spec_c = ArmSpec(study_id="e", arm="C", topology="batched", n_replicas=5, horizon=5)
+    await _run_all(conn, writer, StateAwareClient(), [spec_a], source)
     await _run_all(conn, writer, DropFirstReplicaClient(), [spec_c], source)
 
-    calib, thresh = source.samples("calib"), source.samples("thresh")
-    # Every sample has 4 < N answers, so nothing is valid: fitting has no data
-    # and fails loudly instead of averaging the survivors.
-    with pytest.raises(ValueError):
-        await fit_arm(conn, writer, spec_c.experiment_id, 5, calib, thresh, CFG)
+    calib, thresh, test = (source.samples(s) for s in ("calib", "thresh", "test"))
+    fit_a = await fit_arm(conn, writer, spec_a.experiment_id, 1, calib, thresh, CFG)
+    # Every C sample has 4 < N answers: nothing is valid. The fit degrades to
+    # an explicit "target not reached" state instead of averaging survivors.
+    fit_c = await fit_arm(conn, writer, spec_c.experiment_id, 5, calib, thresh, CFG)
+    assert all(not c.reached for c in fit_c.margins.values())
+
+    rows_c = score_rows(conn, fit_c, test)
+    assert all(r.p is None for r in rows_c)
+    report = compare_arms(
+        score_rows(conn, fit_a, test),
+        rows_c,
+        fit_a,
+        fit_c,
+        CFG,
+        calls_a=load_calls(conn, spec_a.experiment_id),
+        calls_c=load_calls(conn, spec_c.experiment_id),
+    )
+    assert report["n_common_valid"] == 0
+    assert report["arms"]["C"]["invalid_rate"] == 1.0
+    assert any("arm C" in w for w in report["warnings"])
+    assert report["common"]["targets"]["0.80"]["diff_ci"] is None
 
 
 async def test_report_command_prints_comparison_from_frozen_fits(tmp_path, capsys):
@@ -157,3 +177,31 @@ async def test_report_command_prints_comparison_from_frozen_fits(tmp_path, capsy
     )
     out = capsys.readouterr().out
     assert "Experiment 1 report" in out and "majority" in out
+
+
+async def test_fit_command_freezes_fits_and_writes_decisions(tmp_path):
+    from src.experiments.cli import main
+
+    cfg = CFG.model_copy(update={"db_path": str(tmp_path / "f.db")})
+    config_path = tmp_path / "cfg.json"
+    config_path.write_text(cfg.model_dump_json())
+    conn = db.connect(cfg.db_path)
+    writer = SqliteStorageWriter(conn)
+    source = SyntheticSource(cfg.data)
+    spec_c = ArmSpec(study_id=cfg.study_id, arm="C", n_replicas=5, horizon=5)
+    await _run_all(conn, writer, StateAwareClient(), [spec_c], source)
+    conn.close()
+
+    argv = ["fit", "--config", str(config_path), "--arm", "C"]
+    argv += ["--experiment", spec_c.experiment_id]
+    # `fit` owns its event loop (asyncio.run), so call it off this loop.
+    await asyncio.to_thread(main, argv)
+
+    conn = db.connect(cfg.db_path)
+    frozen = conn.execute(
+        "SELECT config_json FROM experiments WHERE experiment_id = ?",
+        (spec_c.experiment_id,),
+    ).fetchone()[0]
+    assert '"frozen"' in frozen and '"fit"' in frozen
+    n = conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
+    assert n == len(source.samples("test"))

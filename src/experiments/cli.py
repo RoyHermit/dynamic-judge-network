@@ -23,7 +23,7 @@ from src.data.schema import SPLITS
 from src.data.synthetic import SyntheticSource
 from src.experiments.config import Exp1Config
 from src.experiments.pilot import collect_replica_probs, pilot_stats
-from src.experiments.pipeline import ArmFit, score_rows
+from src.experiments.pipeline import ArmFit, fit_arm, score_rows, write_decisions
 from src.experiments.runner import ArmSpec, run_arm
 from src.judges.jev_executor import JevStageExecutor
 from src.metrics.report import compare_arms, render_markdown
@@ -40,7 +40,7 @@ async def _run(args: argparse.Namespace) -> None:
     cfg = _load(args.config)
     source = SyntheticSource(cfg.data)
     spec = ArmSpec(
-        study_id=cfg.study_id,
+        study_id=args.study_id or cfg.study_id,
         arm=args.arm,
         topology=args.topology,
         run=args.run,
@@ -82,6 +82,29 @@ def _pilot_stats(args: argparse.Namespace) -> None:
     conn = db.connect(cfg.db_path)
     stats = pilot_stats(collect_replica_probs(conn, args.experiments), labels)
     print(json.dumps(stats.model_dump(), indent=2))
+
+
+async def _fit(args: argparse.Namespace) -> None:
+    cfg = _load(args.config)
+    source = SyntheticSource(cfg.data)
+    conn = db.connect(cfg.db_path)
+    writer = SqliteStorageWriter(conn)
+    n_expected = 1 if args.arm == "A" else cfg.n_replicas
+    fit = await fit_arm(
+        conn,
+        writer,
+        args.experiment,
+        n_expected,
+        source.samples("calib"),
+        source.samples("thresh"),
+        cfg,
+    )
+    rows = score_rows(conn, fit, source.samples(args.decisions_split))
+    headline = fit.margins[cfg.target_key(cfg.headline_coverage)].margin
+    await write_decisions(conn, writer, fit, rows, headline)
+    print(
+        f"{args.experiment}: fit frozen, decisions written for {args.decisions_split}"
+    )
 
 
 def _report(args: argparse.Namespace) -> None:
@@ -129,10 +152,19 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--run", type=int, default=1)
     run.add_argument("--split", choices=list(SPLITS), required=True)
     run.add_argument("--max-units", type=int, default=None)
+    run.add_argument("--study-id", default=None, help="override config study_id")
 
     ps = sub.add_parser("pilot-stats", help="replica variance for stored experiments")
     ps.add_argument("--config", required=True)
     ps.add_argument("--experiments", nargs="+", required=True)
+
+    fit = sub.add_parser("fit", help="freeze calibrator + margins and write decisions")
+    fit.add_argument("--config", required=True)
+    fit.add_argument("--arm", choices=["A", "C"], required=True)
+    fit.add_argument("--experiment", required=True)
+    fit.add_argument(
+        "--decisions-split", choices=["test", "test_shift"], default="test"
+    )
 
     rep = sub.add_parser("report", help="compare A and C on one evaluation split")
     rep.add_argument("--config", required=True)
@@ -145,6 +177,8 @@ def main(argv: list[str] | None = None) -> None:
         asyncio.run(_run(args))
     elif args.command == "pilot-stats":
         _pilot_stats(args)
+    elif args.command == "fit":
+        asyncio.run(_fit(args))
     elif args.command == "report":
         _report(args)
 
