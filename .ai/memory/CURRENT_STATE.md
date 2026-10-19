@@ -54,8 +54,7 @@ No commits to `main`; push is human-only.
 
 ## Next step
 
-See `TASKS.md`. Experiment 1 (A, C) ran on synthetic + ECB data: A = C = base
-rate (spec §12-13). Experiment 2 (role-decomposed D vs A', preregistered) has an
-approved design: `docs/superpowers/specs/2026-10-19-experiment-2-role-decomposition-design.md`
+See `TASKS.md`. Experiment 1 (A, C) on synthetic + ECB: A = C = base rate (spec
+§12-13). Experiment 2 (role-decomposed D vs A', preregistered), approved design: `docs/superpowers/specs/2026-10-19-experiment-2-role-decomposition-design.md`
 (branch `feat/experiment-2-role-decomposition`, built on `feat/experiment-1-public-data`).
-Raw results stay in git-ignored `workspace/`; `data/` holds the ECB CSV.
+Raw results: git-ignored `workspace/`; ECB CSV: `data/`.
