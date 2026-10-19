@@ -116,3 +116,16 @@ def test_ci_present_but_diff_none_is_not_met() -> None:
     v = verdict(d_vs_ap=odd)
     assert v.criteria["D>A' (+3pt)"] is False
     assert any("A'" in n for n in v.notes)
+
+
+def test_exploratory_success_carries_the_attribution_tail() -> None:
+    p, f = verdict(), verdict(d_vs_m=pd(0.05, -0.01))
+    label, text = combine(p, f)
+    assert label == "Exploratory success"
+    assert "fresh data is needed to confirm" in text
+    assert "attributable to role decomposition" in text
+    no_attr = verdict(d_vs_ap5=pd(0.01, -0.01))
+    _, text2 = combine(no_attr, f)
+    assert "not separable from replication/compute" in text2
+    _, text3 = combine(verdict(d_vs_ap5=None), f)
+    assert "not separable from replication/compute" in text3

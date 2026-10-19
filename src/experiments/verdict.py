@@ -60,16 +60,24 @@ def evaluate_dataset(
     )
 
 
+def _attribution_tail(attributable: bool) -> str:
+    """The §5 attribution sentence shared by every passing verdict."""
+    if attributable:
+        return "the gain is attributable to role decomposition (D also beats A'x5)."
+    return (
+        "the gain is not separable from replication/compute "
+        "(D does not beat A'x5, or A'x5 was not evaluated)."
+    )
+
+
 def combine(ecb: DatasetVerdict, synthetic: DatasetVerdict) -> tuple[str, str]:
-    """Map the two dataset verdicts to (label, wording) per the verdict table."""
+    """Map the two dataset verdicts to (label, wording) per the verdict table.
+
+    Every passing label carries the §5 attribution tail: attributable only
+    when D also beats A'x5 on each dataset that passed.
+    """
     if ecb.passed and synthetic.passed:
-        if ecb.attributable and synthetic.attributable:
-            tail = "the gain is attributable to role decomposition (D also beats A'x5)."
-        else:
-            tail = (
-                "the gain is not separable from replication/compute "
-                "(D does not beat A'x5, or A'x5 was not evaluated)."
-            )
+        tail = _attribution_tail(bool(ecb.attributable and synthetic.attributable))
         return (
             "Strong success",
             "Role decomposition helps on both real and synthetic data; " + tail,
@@ -79,7 +87,8 @@ def combine(ecb: DatasetVerdict, synthetic: DatasetVerdict) -> tuple[str, str]:
             "Exploratory success",
             (
                 "Positive on real data, but prior knowledge from Experiment 1 "
-                "informed the design; fresh data is needed to confirm."
+                "informed the design; fresh data is needed to confirm; "
+                + _attribution_tail(bool(ecb.attributable))
             ),
         )
     if synthetic.passed:

@@ -90,7 +90,9 @@ def _pilot_check(args: argparse.Namespace) -> None:
     """Print the §9 stop-rule outcome; exit 1 on stop.
 
     Every requested arm (default: all five LLM arms) must have been run; a
-    missing arm is a stop reason, never silently skipped.
+    missing arm is a stop reason, never silently skipped. Stored arms must
+    describe the config's dataset. A strict subset of arms is labelled
+    `"diagnostic_only": true` in the JSON: it is never the §9 gate.
     """
     cfg = load_config(args.config)
     source = load_source(cfg.data)
@@ -102,13 +104,17 @@ def _pilot_check(args: argparse.Namespace) -> None:
         if load_experiment_config(conn, eid) is None:
             missing.append(f"missing pilot arm {eid}")
         else:
+            _check_dataset(conn, cfg, eid)
             experiments[eid] = n_expected(arm, cfg.n_replicas)
     check = pilot_check(conn, experiments, source.samples("pilot"), cfg)
     if missing:
         check = check.model_copy(
             update={"stop": True, "reasons": missing + check.reasons}
         )
-    print(json.dumps(check.model_dump(), indent=2))
+    diagnostic_only = set(args.arms) < set(LLM_ARMS)
+    print(
+        json.dumps({**check.model_dump(), "diagnostic_only": diagnostic_only}, indent=2)
+    )
     if check.stop:
         sys.exit(1)
 

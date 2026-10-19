@@ -13,7 +13,12 @@ from src.storage.reader import load_probabilities
 
 
 class PilotCheck(BaseModel):
-    """Outcome of the pilot stop-rule checks; reasons are never hidden."""
+    """Outcome of the pilot stop-rule checks; reasons are never hidden.
+
+    `uninformative_roles` lists the judge ids (e.g. `role_trend`,
+    `ap_judge#0`) whose probability std across pilot inputs is below
+    `degenerate_std`.
+    """
 
     stop: bool
     reasons: list[str] = Field(default_factory=list)

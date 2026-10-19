@@ -111,6 +111,7 @@ async def test_pilot_check_exit_code_on_stop(tmp_path, capsys):
     assert exc.value.code == 1
     out = capsys.readouterr().out
     assert '"stop": true' in out and "uninformative" in out
+    assert json.loads(out)["diagnostic_only"] is True
 
 
 def test_pilot_check_stops_when_an_arm_is_missing(tmp_path, capsys):
@@ -140,6 +141,7 @@ def test_pilot_check_passes_with_all_five_healthy_arms(tmp_path, capsys):
     main(["pilot-check", "--config", str(path)])  # returns normally: exit 0
     check = json.loads(capsys.readouterr().out)
     assert check["stop"] is False and check["reasons"] == []
+    assert check["diagnostic_only"] is False
     assert len(check["invalid_rate"]) == len(LLM_ARMS)
 
 
@@ -324,3 +326,19 @@ def test_report_json_prints_the_full_report(tmp_path, capsys):
     d = report["arms"]["D"]
     assert {"targets", "reliability", "cost", "latency_p95", "platt"} <= set(d)
     assert report["diagnostics"]["correlation"]["D"] is not None
+
+
+async def test_pilot_check_refuses_a_different_dataset(tmp_path):
+    path = small_config(tmp_path)
+    cfg = load_config(str(path))
+    conn = db.connect(cfg.db_path)
+    writer = SqliteStorageWriter(conn)
+    spec = arm_spec(cfg.study_id, "Ap", cfg.n_replicas, 5)
+    executor = JevStageExecutor(RoleClient(), writer)
+    pilot = load_source(cfg.data).samples("pilot")
+    await run_arm(
+        spec, pilot, executor, writer, conn, config_extra={"dataset_id": "other"}
+    )
+    argv = ["pilot-check", "--config", str(path), "--arms", "Ap"]
+    with pytest.raises(ValueError, match="different dataset"):
+        await asyncio.to_thread(main, argv)

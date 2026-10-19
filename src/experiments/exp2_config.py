@@ -29,5 +29,6 @@ class Exp2Config(Exp1Config):
     data: DataConfig = Field(default_factory=_default_data)
     platt_l2: float = Field(default=0.01, ge=0)  # L2 strength for Platt scaling
     min_gain: float = Field(default=0.03, ge=0)  # frozen; do not tune
-    degenerate_std: float = Field(default=0.01, gt=0)  # min std of an indicator
+    # minimum std of a Judge's probability across pilot inputs (§9 stop rule)
+    degenerate_std: float = Field(default=0.01, gt=0)
     pilot_invalid_max: float = Field(default=0.05, ge=0, le=1)
