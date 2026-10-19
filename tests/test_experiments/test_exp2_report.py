@@ -332,6 +332,29 @@ async def test_undefined_correlation_is_none_in_report(tmp_path):
     assert report["diagnostics"]["correlation"]["Ap5"] is not None
 
 
+async def test_constant_prediction_judges_have_undefined_correlations(tmp_path):
+    cfg = _cfg()
+    conn, source = await _build_db(tmp_path, cfg, ALL_ARMS, constant_d=True)
+    # constant raw answers -> constant calibrated call; test labels stay mixed,
+    # so the error vectors equal the label indicator (spurious +-1 if defined)
+    assert {s.label for s in source.samples("test")} == {"HIGH", "LOW"}
+    report = build_report(conn, cfg, source, "test", ALL_ARMS)
+    diag = report["diagnostics"]
+    corr = diag["correlation"]["D"]
+    roles = sorted(f"role_{r}" for r in ROLES)
+    assert corr["constant_prediction"] == roles
+    assert all(v is None for v in corr["pairwise_error"].values())
+    assert all(v is None for v in corr["pairwise_residual"].values())
+    assert corr["mean_error"] is None
+    for role in roles:
+        assert diag["judges"][role]["constant_prediction"] is True
+        assert diag["judges"][role]["platt_fallback"] == "constant_input"
+    assert diag["correlation"]["Ap5"]["constant_prediction"] == []
+    md = render_markdown(report)
+    assert "constant_prediction" in md and "role_trend" in md
+    assert "| role_trend |" in md and "constant_input" in md
+
+
 async def test_report_marks_ecb_exploratory_and_ci_assumption(full, tmp_path):
     conn, source, _ = full
     ecb = EcbCsvConfig(path=str(tmp_path / "fake.csv"), split_sizes=dict(SIZES))

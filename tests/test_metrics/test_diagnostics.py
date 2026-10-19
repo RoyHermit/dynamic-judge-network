@@ -9,12 +9,15 @@ from src.experiments.exp2_config import Exp2Config
 from src.metrics.core import Row
 from src.metrics.diagnostics import (
     aligned_error_vectors,
+    constant_prediction_judges,
     error_vector,
     fit_judge_platt,
     full_set_accuracy,
     judge_diagnostics,
     judge_rows,
     leave_one_out,
+    masked_pairwise_correlations,
+    mean_defined,
     mean_pairwise_correlation,
     pairwise_disagreement,
     residual_vectors,
@@ -82,6 +85,38 @@ def test_mean_pairwise_ignores_undefined_pairs():
     ea = [float(v) for v in error_vector(_rows(pat))]
     const = [0.0] * len(ea)
     assert mean_pairwise_correlation([ea, ea, const]) == pytest.approx(1.0)
+
+
+def test_constant_calls_make_correlations_undefined():
+    labels = ["HIGH", "LOW", "LOW", "HIGH", "LOW", "HIGH", "HIGH", "LOW"]
+    pat = [True, False, True, True, False, True, False, True]
+    rows = {
+        # always HIGH: the error vector is the LOW indicator (trivially +-1)
+        "always_high_a": [_row(i, y, 0.7) for i, y in enumerate(labels)],
+        "always_high_b": [_row(i, y, 0.6) for i, y in enumerate(labels)],
+        "varying_a": _rows(pat),
+        "varying_b": _rows(pat),
+    }
+    # relabel the varying rows onto the same ids/labels as the constant ones
+    for name in ("varying_a", "varying_b"):
+        rows[name] = [
+            _row(i, labels[i], r.p if r.label == labels[i] else 1.0 - r.p)
+            for i, r in enumerate(rows[name])
+        ]
+    errors = aligned_error_vectors(rows)
+    assert safe_correlation(
+        errors["always_high_a"], errors["always_high_b"]
+    ) == pytest.approx(
+        1.0
+    )  # the spurious value the mask removes
+    constant = constant_prediction_judges(rows)
+    assert constant == ["always_high_a", "always_high_b"]
+    pairs = masked_pairwise_correlations(errors, set(constant))
+    assert pairs[("always_high_a", "always_high_b")] is None
+    assert pairs[("always_high_a", "varying_a")] is None
+    assert pairs[("varying_a", "varying_b")] == pytest.approx(1.0)
+    assert mean_defined(list(pairs.values())) == pytest.approx(1.0)
+    assert mean_defined([None, None]) is None
 
 
 async def test_per_judge_calibration_changes_error_definition(conn):

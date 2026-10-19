@@ -30,7 +30,7 @@ def test_slope_never_negative():
     ys = [1.0 if rng.random() < 1.0 - p else 0.0 for p in ps]
     cal = PlattCalibrator.fit(ps, ys)
     assert cal.slope == 0.0
-    assert cal.fallback is None
+    assert cal.fallback == "nonpositive_slope"
     base = min(max(cal.base_rate, 1e-4), 1 - 1e-4)
     for x in (0.1, 0.5, 0.9):
         assert cal.predict(x) == pytest.approx(base, abs=1e-9)

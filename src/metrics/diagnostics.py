@@ -131,6 +131,42 @@ def mean_pairwise_correlation(vectors: list[list[float]]) -> float | None:
     return sum(values) / len(values) if values else None
 
 
+def constant_prediction_judges(rows_by_judge: dict[str, list[Row]]) -> list[str]:
+    """Judges whose calls (p >= 0.5) never change over the commonly valid ids.
+
+    Such a Judge's error vector is just the label indicator (or its
+    complement), so its correlation with another constant Judge is a
+    spurious +-1; spec §6 treats these correlations as undefined.
+    """
+    common = _common_valid(rows_by_judge)
+    return sorted(
+        j for j, m in common.items() if len({r.p >= 0.5 for r in m.values()}) == 1
+    )
+
+
+def masked_pairwise_correlations(
+    vectors: dict[str, list[float]], undefined: set[str] | frozenset[str]
+) -> dict[tuple[str, str], float | None]:
+    """Pearson correlation per sorted judge pair; None if either is `undefined`.
+
+    Pairs that `safe_correlation` cannot define are None as well.
+    """
+    return {
+        (a, b): (
+            None
+            if a in undefined or b in undefined
+            else safe_correlation(vectors[a], vectors[b])
+        )
+        for a, b in itertools.combinations(sorted(vectors), 2)
+    }
+
+
+def mean_defined(values: list[float | None]) -> float | None:
+    """Mean of the non-None values; None when every value is None."""
+    defined = [v for v in values if v is not None]
+    return sum(defined) / len(defined) if defined else None
+
+
 def pairwise_disagreement(
     rows_by_judge: dict[str, list[Row]],
 ) -> dict[tuple[str, str], float]:

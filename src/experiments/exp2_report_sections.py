@@ -1,12 +1,12 @@
 """Diagnostics section of the Experiment 2 report (spec §6). Offline, no API.
 
 Every Judge is calibrated on `calib` only; correlations that are undefined
-(constant vectors, fewer than two aligned samples) stay None, never 0.
+(constant vectors, fewer than two aligned samples, or a Judge whose calibrated
+call is constant: `constant_prediction`) stay None, never 0.
 """
 
 from __future__ import annotations
 
-import itertools
 import sqlite3
 from typing import Any
 
@@ -16,15 +16,16 @@ from src.features.indicators import ROLES
 from src.metrics.core import Row
 from src.metrics.diagnostics import (
     aligned_error_vectors,
+    constant_prediction_judges,
     fit_judge_platt,
     full_set_accuracy,
     judge_diagnostics,
     judge_rows,
     leave_one_out,
-    mean_pairwise_correlation,
+    masked_pairwise_correlations,
+    mean_defined,
     pairwise_disagreement,
     residual_vectors,
-    safe_correlation,
 )
 
 ROLE_JUDGES: tuple[str, ...] = tuple(f"role_{r}" for r in ROLES)
@@ -62,23 +63,35 @@ def judge_section(
     return rows_by_judge, summary
 
 
-def _pairwise(vectors: dict[str, list[float]]) -> dict[str, float | None]:
+def _pairwise(
+    vectors: dict[str, list[float]], undefined: set[str]
+) -> dict[str, float | None]:
+    """JSON-keyed pairwise correlations; pairs with an `undefined` judge are None."""
     return {
-        _pair_key(a, b): safe_correlation(vectors[a], vectors[b])
-        for a, b in itertools.combinations(sorted(vectors), 2)
+        _pair_key(a, b): c
+        for (a, b), c in masked_pairwise_correlations(vectors, undefined).items()
     }
 
 
 def correlation_section(rows_by_judge: dict[str, list[Row]]) -> dict[str, Any]:
-    """Error-vector (primary) and residual (secondary) correlations."""
+    """Error-vector (primary) and residual (secondary) correlations.
+
+    Judges with a constant calibrated call over the aligned ids are listed
+    under `constant_prediction`; every pair involving one is None (undefined)
+    and is left out of the means (spec §6).
+    """
     errors = aligned_error_vectors(rows_by_judge)
     residuals = residual_vectors(rows_by_judge)
+    constant = constant_prediction_judges(rows_by_judge)
+    pairwise_error = _pairwise(errors, set(constant))
+    pairwise_residual = _pairwise(residuals, set(constant))
     return {
         "n_aligned": len(next(iter(errors.values()), [])),
-        "mean_error": mean_pairwise_correlation(list(errors.values())),
-        "mean_residual": mean_pairwise_correlation(list(residuals.values())),
-        "pairwise_error": _pairwise(errors),
-        "pairwise_residual": _pairwise(residuals),
+        "constant_prediction": constant,
+        "mean_error": mean_defined(list(pairwise_error.values())),
+        "mean_residual": mean_defined(list(pairwise_residual.values())),
+        "pairwise_error": pairwise_error,
+        "pairwise_residual": pairwise_residual,
     }
 
 
@@ -130,8 +143,12 @@ def diagnostics_section(
         rows, summary = judge_section(
             conn, experiment_ids[arm], judge_ids, calib, samples, cfg
         )
-        judges.update(summary)
         correlation[arm] = correlation_section(rows)
+        for judge in summary:
+            summary[judge]["constant_prediction"] = (
+                judge in correlation[arm]["constant_prediction"]
+            )
+        judges.update(summary)
         disagreement[arm] = disagreement_section(rows)
     loo = leave_one_out_section(
         conn, experiment_ids["D"], calib, thresh, samples, cfg, ids
@@ -178,6 +195,11 @@ def render_diagnostics(diag: dict[str, Any]) -> list[str]:
             f"- {arm}: error {fmt_cell(c['mean_error'])}, "
             f"residual {fmt_cell(c['mean_residual'])} (n = {c['n_aligned']})"
         )
+        if c["constant_prediction"]:
+            lines.append(
+                f"- {arm}: constant_prediction (calibrated call never changes; "
+                f"its correlations are undefined): {', '.join(c['constant_prediction'])}"
+            )
     for arm, d in diag["disagreement"].items():
         if d:
             pairs = ", ".join(f"{k} {fmt_cell(v)}" for k, v in d.items())

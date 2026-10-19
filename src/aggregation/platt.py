@@ -44,7 +44,9 @@ class PlattCalibrator(BaseModel):
 
     `fallback` is None for a fitted curve, otherwise one of "constant_input",
     "single_class", "separated", "fit_failed"; then `predict` returns the
-    base rate. `base_rate` is the share of positive labels (0.5 if empty).
+    base rate. "nonpositive_slope" marks a fit whose slope was clamped to 0
+    (intercept-only curve, so `predict` is also constant at the base rate).
+    `base_rate` is the share of positive labels (0.5 if empty).
     """
 
     intercept: float
@@ -58,7 +60,8 @@ class PlattCalibrator(BaseModel):
 
         The slope is constrained to be >= 0: if the unconstrained optimum has a
         negative slope, the model is refitted intercept-only (intercept =
-        logit of the clipped base rate) and reported as an ordinary fit.
+        logit of the clipped base rate) and recorded with fallback
+        "nonpositive_slope", since its predictions are constant.
         Degenerate data (empty, constant inputs, single class, perfect
         separation) is detected BEFORE fitting and returns a fallback; so does
         non-convergence within 50 iterations or a non-finite parameter
@@ -89,12 +92,21 @@ class PlattCalibrator(BaseModel):
             return fallback("fit_failed")
         a, b = result
         if b < 0.0:
-            a, b = _logit_base(base), 0.0
+            return cls(
+                intercept=_logit_base(base),
+                slope=0.0,
+                fallback="nonpositive_slope",
+                base_rate=base,
+            )
         return cls(intercept=a, slope=b, fallback=None, base_rate=base)
 
     def predict(self, p: float) -> float:
-        """Calibrated probability in (0, 1); base rate (clipped) on fallback."""
-        if self.fallback is not None:
+        """Calibrated probability in (0, 1); base rate (clipped) on fallback.
+
+        "nonpositive_slope" keeps the intercept-only curve, whose value
+        sigmoid(logit(clipped base rate)) is that same base rate.
+        """
+        if self.fallback not in (None, "nonpositive_slope"):
             return min(max(self.base_rate, _CLIP), 1.0 - _CLIP)
         return _sigmoid(self.intercept + self.slope * logit_clip(p))
 
