@@ -25,7 +25,13 @@ from src.experiments.exp2_arms import arm_spec, judge_fingerprint, n_expected
 from src.experiments.exp2_config import Exp2Config
 from src.experiments.exp2_pilot import pilot_check
 from src.experiments.exp2_pipeline import Exp2Fit, fit_exp2_arm, score_exp2
-from src.experiments.exp2_report import LLM_ARMS, build_report, render_markdown
+from src.experiments.exp2_report import (
+    LLM_ARMS,
+    build_report,
+    load_frozen_fit,
+    render_markdown,
+    select_arms,
+)
 from src.experiments.pipeline import write_decisions
 from src.experiments.runner import ArmLike, run_arm
 from src.experiments.verdict import DatasetVerdict, combine
@@ -107,26 +113,42 @@ def _pilot_check(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-def _check_complete(
-    conn: sqlite3.Connection, source: DataSource, spec: ArmLike
-) -> None:
-    """Refuse to fit before every calib/thresh unit has a recorded call.
-
-    Freezing is irreversible, so fitting on a half-finished run would lock
-    in a calibrator and margins that finishing the run could never repair.
-    """
+def missing_units(
+    conn: sqlite3.Connection,
+    source: DataSource,
+    spec: ArmLike,
+    splits: tuple[str, ...],
+) -> int:
+    """Number of (sample, stage) units of `splits` with no recorded call."""
     done = completed_units(conn, spec.experiment_id)
     stages = [stage for stage, _ in spec.units()]
-    missing = sum(
+    return sum(
         (s.input_id, stage) not in done
-        for split in ("calib", "thresh")
+        for split in splits
         for s in source.samples(split)
         for stage in stages
     )
+
+
+def _check_complete(
+    conn: sqlite3.Connection,
+    source: DataSource,
+    spec: ArmLike,
+    splits: tuple[str, ...] = ("calib", "thresh"),
+) -> None:
+    """Refuse when any unit of `splits` has no recorded call.
+
+    Freezing is irreversible, so fitting on a half-finished run would lock
+    in a calibrator and margins that finishing the run could never repair;
+    reporting on a half-finished evaluation split would count the missing
+    units as invalid samples and silently shrink the eligibility set.
+    """
+    missing = missing_units(conn, source, spec, splits)
     if missing:
         raise ValueError(
-            f"{spec.experiment_id!r} is incomplete: {missing} calib/thresh units "
-            "have no recorded call; run them first (or pass --allow-incomplete)"
+            f"{spec.experiment_id!r} is incomplete: {missing} "
+            f"{'/'.join(splits)} units have no recorded call; run them first "
+            "(or pass --allow-incomplete)"
         )
 
 
@@ -171,30 +193,83 @@ async def _fit(args: argparse.Namespace) -> None:
 
 
 def load_report(
-    config_path: str, split: str, arms: list[str], preliminary: bool
+    config_path: str,
+    split: str,
+    arms: list[str],
+    preliminary: bool,
+    *,
+    allow_incomplete: bool = False,
 ) -> dict[str, Any]:
-    """Build the report for one config after checking each arm's dataset."""
+    """Build the report for one config after checking each arm's dataset.
+
+    Every scored LLM arm must have a frozen fit (which itself required
+    complete calib/thresh) and a recorded call for every unit of `split`;
+    otherwise ValueError. `allow_incomplete` downgrades the missing-unit
+    refusal to a warning note in the report (a missing fit always refuses).
+    """
     cfg = load_config(config_path)
     source = load_source(cfg.data)
     conn = db.connect(cfg.db_path)
     for arm in arms:
         _check_dataset(conn, cfg, _spec(cfg, arm).experiment_id)
-    return build_report(conn, cfg, source, split, arms, preliminary=preliminary)
+    scored, _ = select_arms(split, arms, preliminary)
+    incomplete = []
+    for arm in scored:
+        spec = _spec(cfg, arm)
+        load_frozen_fit(conn, spec.experiment_id)  # ValueError when not fitted
+        if not allow_incomplete:
+            _check_complete(conn, source, spec, (split,))
+        elif missing := missing_units(conn, source, spec, (split,)):
+            incomplete.append(
+                f"incomplete run: arm {arm} has {missing} {split} units without "
+                "a recorded call (--allow-incomplete); they count as invalid "
+                "samples and shrink the eligibility set"
+            )
+    report = build_report(conn, cfg, source, split, arms, preliminary=preliminary)
+    report["notes"] = incomplete + report["notes"]
+    return report
 
 
 def _report(args: argparse.Namespace) -> None:
-    """Print the markdown report for one split."""
-    report = load_report(args.config, args.split, args.arms, args.preliminary)
-    print(render_markdown(report))
+    """Print the markdown (default) or JSON report for one split."""
+    report = load_report(
+        args.config,
+        args.split,
+        args.arms,
+        args.preliminary,
+        allow_incomplete=args.allow_incomplete,
+    )
+    print(json.dumps(report, indent=2) if args.json else render_markdown(report))
 
 
-def _dataset_lines(name: str, verdict: DatasetVerdict) -> list[str]:
+def _dataset_lines(
+    name: str, verdict: DatasetVerdict, report: dict[str, Any]
+) -> list[str]:
+    """Verdict criteria plus the context needed to trust it (§5, §6).
+
+    Prints the eligibility n, every LLM arm's invalid rate and Platt
+    fallback, and all report notes (arm warnings, incomplete-run warnings).
+    """
     outcome = "passes" if verdict.passed else "fails"
     lines = [f"{name}: {outcome} (attributable: {verdict.attributable})"]
     lines += [
         f"  - {k}: {'met' if v else 'not met'}" for k, v in verdict.criteria.items()
     ]
     lines += [f"  - note: {n}" for n in verdict.notes]
+    elig = report.get("eligibility") or {}
+    if elig:
+        lines.append(
+            f"  - eligibility n: {elig['n']} "
+            f"(valid in {', '.join(elig['llm_arms'])})"
+        )
+    for arm, summary in (report.get("arms") or {}).items():
+        if "experiment_id" not in summary:  # deterministic competitor
+            continue
+        lines.append(
+            f"  - arm {arm}: invalid rate {summary['invalid_rate']:.1%}, "
+            f"Platt fallback {summary.get('platt_fallback') or 'none'}"
+        )
+    lines += [f"  - report note: {n}" for n in report.get("notes", [])]
     return lines
 
 
@@ -205,13 +280,20 @@ def _verdict(args: argparse.Namespace) -> None:
     if load_config(args.synthetic_config).data.source != "synthetic":
         raise ValueError("--synthetic-config must describe synthetic data")
     verdicts = {}
+    reports = {}
     for name, path in (("ECB", args.ecb_config), ("synthetic", args.synthetic_config)):
-        report = load_report(path, "test", list(LLM_ARMS), preliminary=False)
-        verdicts[name] = DatasetVerdict.model_validate(report["verdict"])
+        reports[name] = load_report(
+            path,
+            "test",
+            list(LLM_ARMS),
+            preliminary=False,
+            allow_incomplete=args.allow_incomplete,
+        )
+        verdicts[name] = DatasetVerdict.model_validate(reports[name]["verdict"])
     label, wording = combine(verdicts["ECB"], verdicts["synthetic"])
     lines = [f"Verdict: {label}", wording, ""]
-    lines += _dataset_lines("ECB (primary)", verdicts["ECB"])
-    lines += _dataset_lines("synthetic", verdicts["synthetic"])
+    lines += _dataset_lines("ECB (primary)", verdicts["ECB"], reports["ECB"])
+    lines += _dataset_lines("synthetic", verdicts["synthetic"], reports["synthetic"])
     print("\n".join(lines))
 
 
@@ -262,10 +344,23 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="allow A'x5 to be absent on test (no attribution, verdict not final)",
     )
+    rep.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="report even if split units are missing (adds a warning note)",
+    )
+    rep.add_argument(
+        "--json", action="store_true", help="print the full report as JSON"
+    )
 
     ver = sub.add_parser("verdict", help="combine ECB and synthetic verdicts (§11)")
     ver.add_argument("--ecb-config", required=True)
     ver.add_argument("--synthetic-config", required=True)
+    ver.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="judge even if test units are missing (adds a warning note)",
+    )
 
     args = parser.parse_args(argv)
     if args.command == "run":

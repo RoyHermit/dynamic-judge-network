@@ -214,7 +214,7 @@ def _llm_arm(
     return rows, summary
 
 
-def _select_arms(
+def select_arms(
     split: str, arms: list[str], preliminary: bool
 ) -> tuple[list[str], list[str]]:
     """(LLM arms to score, eligibility arms); ValueError on a missing arm."""
@@ -317,7 +317,7 @@ def build_report(
     Majority only, no verdict).
     """
     secondary = split == "test_shift"
-    scored, rule_arms = _select_arms(split, arms, preliminary)
+    scored, rule_arms = select_arms(split, arms, preliminary)
     # flag, note, heading and eligibility set must agree: preliminary only
     # means "test without A'x5"
     preliminary = preliminary and "Ap5" not in scored and split == "test"

@@ -8,7 +8,13 @@ import json
 from pathlib import Path
 
 import pytest
-from helpers_exp2 import RoleClient, small_config
+from helpers_exp2 import (
+    SMALL_SIZES,
+    RoleClient,
+    run_everything,
+    small_config,
+    write_ecb_csv,
+)
 from pydantic import ValidationError
 
 from src.data.ecb import EcbCsvConfig
@@ -194,7 +200,7 @@ def test_verdict_command_prints_combined_label(tmp_path, monkeypatch, capsys):
     syn = small_config(tmp_path, name="syn")
     calls = []
 
-    def fake_load_report(config_path, split, arms, preliminary):
+    def fake_load_report(config_path, split, arms, preliminary, **kwargs):
         calls.append((config_path, split, tuple(arms), preliminary))
         return {"verdict": _canned_verdict(config_path == str(ecb), None)}
 
@@ -215,10 +221,12 @@ def test_report_requires_ap5_unless_preliminary(tmp_path, monkeypatch):
 
     def fake_build_report(conn, cfg, source, split, arms, *, preliminary=False):
         seen.append((tuple(arms), preliminary))
-        return {"verdict": None}
+        return {"verdict": None, "notes": []}
 
     monkeypatch.setattr(exp2_cli, "build_report", fake_build_report)
     monkeypatch.setattr(exp2_cli, "render_markdown", lambda report: "md")
+    monkeypatch.setattr(exp2_cli, "load_frozen_fit", lambda conn, eid: None)
+    monkeypatch.setattr(exp2_cli, "_check_complete", lambda *args: None)
     main(["report", "--config", str(path), "--split", "test"])
     main(
         ["report", "--config", str(path), "--split", "test"]
@@ -254,3 +262,53 @@ def test_judge_fingerprint_tracks_prompt_and_version(monkeypatch):
     assert base != judge_fingerprint(arm_spec("s", "Ap", 5, 7))  # horizon in prompt
     monkeypatch.setattr(indicator_judge.AllIndicatorsJudge, "judge_version", "x")
     assert judge_fingerprint(spec) != base
+
+
+def _fit_all(path: Path) -> None:
+    for arm in LLM_ARMS:
+        main(["fit", "--config", str(path), "--arm", arm])
+
+
+def test_report_refuses_an_incomplete_test_split(tmp_path, capsys):
+    path = small_config(tmp_path)
+    asyncio.run(run_everything(path, short={("D", "test"): 1}))
+    _fit_all(path)
+    capsys.readouterr()
+    argv = ["report", "--config", str(path), "--split", "test"]
+    with pytest.raises(ValueError, match="incomplete: 5 test units"):
+        main(argv)
+    main([*argv, "--allow-incomplete"])
+    out = capsys.readouterr().out
+    assert "incomplete run: arm D has 5 test units without a recorded call" in out
+
+
+def test_report_refuses_an_unfitted_arm(tmp_path):
+    path = small_config(tmp_path)
+    asyncio.run(run_everything(path))
+    for arm in ("A", "C", "Ap", "D"):  # Ap5 never fitted
+        main(["fit", "--config", str(path), "--arm", arm])
+    with pytest.raises(ValueError, match="no frozen fit"):
+        main(["report", "--config", str(path), "--allow-incomplete"])
+
+
+def test_verdict_refuses_incomplete_and_prints_context(tmp_path, capsys):
+    csv = write_ecb_csv(tmp_path / "rates.csv")
+    ecb_data = EcbCsvConfig(path=str(csv), split_sizes=dict(SMALL_SIZES))
+    ecb = small_config(tmp_path, name="ecb", data=ecb_data)
+    syn = small_config(tmp_path, name="syn")
+    asyncio.run(run_everything(ecb, short={("Ap", "test"): 1}))
+    asyncio.run(run_everything(syn))
+    _fit_all(ecb)
+    _fit_all(syn)
+    capsys.readouterr()
+    argv = ["verdict", "--ecb-config", str(ecb), "--synthetic-config", str(syn)]
+    with pytest.raises(ValueError, match="incomplete"):
+        main(argv)
+    main([*argv, "--allow-incomplete"])
+    out = capsys.readouterr().out
+    assert "Verdict:" in out
+    assert "incomplete run: arm Ap has 1 test units" in out
+    assert out.count("eligibility n: ") == 2
+    for arm in LLM_ARMS:
+        assert f"arm {arm}: invalid rate " in out
+    assert "Platt fallback" in out

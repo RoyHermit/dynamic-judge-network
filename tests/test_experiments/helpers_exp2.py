@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import math
 import random
 from pathlib import Path
 from typing import Any
 
 import typesafe_sdk as ts
 
+from src.data.factory import load_source
+from src.data.schema import SPLITS
 from src.data.synthetic import SyntheticConfig
+from src.experiments.exp2_arms import arm_spec
 from src.experiments.exp2_config import Exp2Config
+from src.experiments.runner import run_arm
+from src.judges.jev_executor import JevStageExecutor
+from src.storage import db
+from src.storage.writer import SqliteStorageWriter
 
 # Small splits; test >= 24 so the block bootstrap (block_len 12) yields a CI.
 SMALL_SIZES = {"pilot": 3, "calib": 6, "thresh": 6, "test": 30, "test_shift": 6}
@@ -68,4 +76,37 @@ def small_config(tmp_path: Path, name: str = "exp2", **update: Any) -> Path:
     )
     path = tmp_path / f"{name}.json"
     path.write_text(cfg.model_dump_json())
+    return path
+
+
+async def run_everything(
+    config_path: Path, short: dict[tuple[str, str], int] | None = None
+) -> None:
+    """Run every LLM arm on every split with a fake client (no network).
+
+    `short[(arm, split)] = k` leaves the last `k` samples of that split unrun.
+    """
+    cfg = Exp2Config.model_validate_json(Path(config_path).read_text())
+    source = load_source(cfg.data)
+    conn = db.connect(cfg.db_path)
+    writer = SqliteStorageWriter(conn)
+    executor = JevStageExecutor(RoleClient(), writer)
+    for arm in ("A", "C", "Ap", "Ap5", "D"):
+        spec = arm_spec(cfg.study_id, arm, cfg.n_replicas, cfg.data.horizon)
+        for split in SPLITS:
+            samples = source.samples(split)
+            drop = (short or {}).get((arm, split), 0)
+            await run_arm(spec, samples[: len(samples) - drop], executor, writer, conn)
+    conn.close()
+
+
+def write_ecb_csv(path: Path, n: int = 1200, seed: int = 5) -> Path:
+    """Generated ECB-layout CSV (`Date,USD,JPY,`, newest first); no real data."""
+    rng = random.Random(seed)
+    price, rows = 1.1, []
+    for k in range(n):  # oldest -> newest
+        price *= math.exp(rng.gauss(0, 0.005))
+        day = f"{2000 + k // 336}-{1 + (k // 28) % 12:02d}-{1 + k % 28:02d}"
+        rows.append(f"{day},{price:.4f},{price * 130:.2f},")
+    path.write_text("\n".join(["Date,USD,JPY,", *reversed(rows)]) + "\n")
     return path
