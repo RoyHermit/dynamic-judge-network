@@ -6,10 +6,12 @@ import hashlib
 import json
 import math
 import random
+from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from src.data.schema import SPLITS, GeneratedData, Regime, Sample, Split
+from src.data.windowing import WindowSpec, block_bars, cut_samples
 
 
 class RegimeParams(BaseModel):
@@ -27,37 +29,13 @@ def _default_regimes() -> dict[Regime, RegimeParams]:
     }
 
 
-def _default_sizes() -> dict[Split, int]:
-    # Development defaults only; real sizes are set after the pilot (spec §4.4).
-    return {"pilot": 30, "calib": 200, "thresh": 200, "test": 300, "test_shift": 300}
-
-
-class SyntheticConfig(BaseModel):
+class SyntheticConfig(WindowSpec):
+    source: Literal["synthetic"] = "synthetic"
     seed: int = 0
-    window: int = Field(default=60, ge=2)  # W
-    horizon: int = Field(default=5, ge=1)  # H
-    stride: int = Field(default=5, ge=1)
-    epsilon: float = Field(default=1e-4, ge=0)
-    embargo: int | None = None  # defaults to window + horizon
     segment_len: int = Field(default=200, ge=1)
     start_price: float = Field(default=100.0, gt=0)
-    split_sizes: dict[Split, int] = Field(default_factory=_default_sizes)
     shift_vol_multiplier: float = Field(default=2.0, gt=0)
     regimes: dict[Regime, RegimeParams] = Field(default_factory=_default_regimes)
-
-    @property
-    def embargo_bars(self) -> int:
-        return self.embargo if self.embargo is not None else self.window + self.horizon
-
-    @model_validator(mode="after")
-    def _validate(self) -> SyntheticConfig:
-        if self.stride < self.horizon:
-            raise ValueError("stride must be >= horizon so labels do not overlap")
-        if self.embargo_bars < self.window + self.horizon:
-            raise ValueError("embargo must be >= window + horizon")
-        if set(self.split_sizes) != set(SPLITS) or min(self.split_sizes.values()) < 1:
-            raise ValueError("split_sizes must give a size >= 1 for every split")
-        return self
 
 
 class _Walk:
@@ -100,6 +78,7 @@ class _Walk:
 
 def _canonical(cfg: SyntheticConfig) -> str:
     payload = cfg.model_dump(mode="json")
+    payload.pop("source", None)  # keeps ids of data generated before `source` existed
     # Regime order changes the generated series, so keep it as an ordered
     # list; every other dict is key-sorted so cosmetic reordering of e.g.
     # split_sizes does not change the dataset identity.
@@ -130,12 +109,10 @@ def generate(cfg: SyntheticConfig) -> GeneratedData:
     window or label crosses a split boundary (spec §4.4).
     """
     rng = random.Random(cfg.seed)
-    prefix = dataset_id(cfg)
     walk = _Walk(cfg, rng)
     bars: list[float] = []
     regimes: list[Regime] = []
-    samples: list[Sample] = []
-    excluded: dict[str, int] = {}
+    starts: dict[Split, int] = {}
 
     for k, split in enumerate(SPLITS):
         walk.vol_mult = 1.0
@@ -145,33 +122,13 @@ def generate(cfg: SyntheticConfig) -> GeneratedData:
                 bars.append(close)
                 regimes.append(regime)
         walk.vol_mult = cfg.shift_vol_multiplier if split == "test_shift" else 1.0
-        n_candidates = cfg.split_sizes[split]
-        n_bars = (n_candidates - 1) * cfg.stride + cfg.window + cfg.horizon
-        start = len(bars)
-        for _ in range(n_bars):
+        starts[split] = len(bars)
+        for _ in range(block_bars(cfg, split)):
             close, regime = walk.step()
             bars.append(close)
             regimes.append(regime)
 
-        excluded[split] = 0
-        for j in range(n_candidates):
-            i = start + cfg.window - 1 + j * cfg.stride
-            ret = math.log(bars[i + cfg.horizon] / bars[i])
-            if abs(ret) <= cfg.epsilon:  # also excludes exact ties at epsilon=0
-                excluded[split] += 1
-                continue
-            samples.append(
-                Sample(
-                    input_id=f"{prefix}-{split}-{i:06d}",
-                    state={
-                        "bars": [round(b, 4) for b in bars[i - cfg.window + 1 : i + 1]]
-                    },
-                    label="HIGH" if ret > 0 else "LOW",
-                    split=split,
-                    regime=regimes[i],
-                    t_index=i,
-                )
-            )
+    samples, excluded = cut_samples(bars, regimes, starts, cfg, dataset_id(cfg))
     return GeneratedData(samples=samples, excluded=excluded, bars=bars)
 
 
@@ -181,6 +138,10 @@ class SyntheticSource:
     def __init__(self, cfg: SyntheticConfig) -> None:
         self.config = cfg
         self.data = generate(cfg)
+
+    @property
+    def excluded(self) -> dict[str, int]:
+        return self.data.excluded
 
     def samples(self, split: Split) -> list[Sample]:
         return [s for s in self.data.samples if s.split == split]

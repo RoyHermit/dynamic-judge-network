@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 Split = Literal["pilot", "calib", "thresh", "test", "test_shift"]
 SPLITS: tuple[Split, ...] = ("pilot", "calib", "thresh", "test", "test_shift")
-Regime = Literal["trend", "mean_reversion", "random_walk", "high_noise"]
+Regime = Literal["trend", "mean_reversion", "random_walk", "high_noise", "unknown"]
 Label = Literal["HIGH", "LOW"]
 
 

@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
+from src.data.factory import DataConfig
 from src.data.synthetic import SyntheticConfig
 
 
@@ -20,7 +21,7 @@ class Pricing(BaseModel):
 class Exp1Config(BaseModel):
     study_id: str = "exp1"
     db_path: str = "workspace/exp1.db"
-    data: SyntheticConfig = Field(default_factory=SyntheticConfig)
+    data: DataConfig = Field(default_factory=SyntheticConfig)
     n_replicas: int = Field(default=5, ge=1)
     model: str | None = None
     extra_body: dict[str, Any] | None = None

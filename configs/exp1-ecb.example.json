@@ -1,0 +1,19 @@
+{
+  "study_id": "exp1-ecb",
+  "db_path": "workspace/exp1-ecb.db",
+  "n_replicas": 5,
+  "model": null,
+  "extra_body": null,
+  "pricing": null,
+  "data": {
+    "source": "ecb_csv",
+    "path": "data/eurofxref-hist.csv",
+    "column": "USD",
+    "window": 60,
+    "horizon": 5,
+    "stride": 5,
+    "split_sizes": {"pilot": 30, "calib": 200, "thresh": 200, "test": 300, "test_shift": 300}
+  },
+  "coverage_targets": [1.0, 0.8, 0.6],
+  "headline_coverage": 0.8
+}

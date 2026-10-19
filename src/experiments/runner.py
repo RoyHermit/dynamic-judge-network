@@ -8,8 +8,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from src.data.factory import same_dataset
 from src.data.schema import Sample
-from src.data.synthetic import same_dataset
 from src.judges.definitions.high_low import HighLowJudge, replica_index
 from src.judges.interface import JudgeExecutor
 from src.storage.reader import (
@@ -46,7 +46,14 @@ class ArmSpec(BaseModel):
 
 # Keys that define what a stored answer means; resuming with different values
 # would pair old answers with a new dataset or model (spec §9.1).
-_IDENTITY_KEYS = ("data", "requested_model", "extra_body", "n_replicas", "horizon")
+_IDENTITY_KEYS = (
+    "data",
+    "dataset_id",
+    "requested_model",
+    "extra_body",
+    "n_replicas",
+    "horizon",
+)
 
 
 def _check_identity(

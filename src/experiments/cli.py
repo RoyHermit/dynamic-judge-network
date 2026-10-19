@@ -20,8 +20,8 @@ from src.data.baselines import (
     fit_regime_aware,
     majority_label,
 )
-from src.data.schema import SPLITS
-from src.data.synthetic import SyntheticSource, same_dataset
+from src.data.factory import dataset_identity, load_source, same_dataset
+from src.data.schema import SPLITS, DataSource
 from src.experiments.config import Exp1Config
 from src.experiments.pilot import collect_replica_probs, pilot_stats
 from src.experiments.pipeline import ArmFit, fit_arm, score_rows, write_decisions
@@ -43,7 +43,7 @@ def _load(path: str) -> Exp1Config:
 
 async def _run(args: argparse.Namespace) -> None:
     cfg = _load(args.config)
-    source = SyntheticSource(cfg.data)
+    source = load_source(cfg.data)
     spec = ArmSpec(
         study_id=args.study_id or cfg.study_id,
         arm=args.arm,
@@ -57,7 +57,8 @@ async def _run(args: argparse.Namespace) -> None:
     writer = SqliteStorageWriter(conn)
     extra = {
         "data": cfg.data.model_dump(),
-        "excluded": source.data.excluded,
+        "dataset_id": dataset_identity(cfg.data),
+        "excluded": source.excluded,
         "requested_model": cfg.model,
         "extra_body": cfg.extra_body,
         "pricing": cfg.pricing.model_dump() if cfg.pricing else None,
@@ -82,7 +83,7 @@ async def _run(args: argparse.Namespace) -> None:
 
 def _pilot_stats(args: argparse.Namespace) -> None:
     cfg = _load(args.config)
-    source = SyntheticSource(cfg.data)
+    source = load_source(cfg.data)
     labels = {s.input_id: s.label for s in source.samples("pilot")}
     conn = db.connect(cfg.db_path)
     stats = pilot_stats(collect_replica_probs(conn, args.experiments), labels)
@@ -93,15 +94,22 @@ def _check_dataset(
     conn: sqlite3.Connection, cfg: Exp1Config, experiment_id: str
 ) -> None:
     """Refuse to score stored answers against a regenerated, different dataset."""
-    stored = (load_experiment_config(conn, experiment_id) or {}).get("data")
-    if stored is not None and not same_dataset(stored, cfg.data.model_dump()):
+    config = load_experiment_config(conn, experiment_id) or {}
+    if "dataset_id" in config:  # also covers a replaced CSV file
+        different = config["dataset_id"] != dataset_identity(cfg.data)
+    else:  # experiments stored before `dataset_id` existed
+        stored = config.get("data")
+        different = stored is not None and not same_dataset(
+            stored, cfg.data.model_dump()
+        )
+    if different:
         raise ValueError(
             f"config describes a different dataset than experiment {experiment_id!r}"
         )
 
 
 def _check_complete(
-    conn: sqlite3.Connection, source: SyntheticSource, experiment_id: str
+    conn: sqlite3.Connection, source: DataSource, experiment_id: str
 ) -> None:
     """Refuse to fit before every calib/thresh unit has a recorded call.
 
@@ -129,7 +137,7 @@ def _check_complete(
 
 async def _fit(args: argparse.Namespace) -> None:
     cfg = _load(args.config)
-    source = SyntheticSource(cfg.data)
+    source = load_source(cfg.data)
     conn = db.connect(cfg.db_path)
     writer = SqliteStorageWriter(conn)
     _check_dataset(conn, cfg, args.experiment)
@@ -160,7 +168,7 @@ async def _fit(args: argparse.Namespace) -> None:
 
 def _report(args: argparse.Namespace) -> None:
     cfg = _load(args.config)
-    source = SyntheticSource(cfg.data)
+    source = load_source(cfg.data)
     conn = db.connect(cfg.db_path)
     _check_dataset(conn, cfg, args.a_experiment)
     _check_dataset(conn, cfg, args.c_experiment)

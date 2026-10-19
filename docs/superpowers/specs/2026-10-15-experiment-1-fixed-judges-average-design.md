@@ -388,3 +388,15 @@ overconfident). Because isotonic output has few distinct steps, all three
 coverage targets selected the same margin per arm (A could not reach 100% or
 80% because many calibrated values equal exactly 0.5 and are always `SKIP`).
 A run1 vs run2 mean |dP(HIGH)| on test: 0.027. Failure and invalid rates: 0.
+
+## 13. Addendum (2026-10-19): public-data source
+
+Implemented behind the `DataSource` seam (§4.6): `data.source = "ecb_csv"`
+reads a local ECB-style reference-rate CSV (one currency column, newest row
+first, `N/A` dropped, sorted ascending). The most recent bars the splits need
+are used; splits are chronological with the usual embargo, so `test_shift` is
+the newest period instead of a volatility multiplier. `regime` is `unknown`.
+The dataset id hashes the configuration **and the CSV content**; a replaced
+file is refused on resume, `fit` and `report`. The CSV itself is never
+committed; the human verifies the publisher's licence and attribution terms.
+Synthetic dataset ids are unchanged (the first run still reports identically).
