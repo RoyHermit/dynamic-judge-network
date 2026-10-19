@@ -54,7 +54,8 @@ No commits to `main`; push is human-only.
 
 ## Next step
 
-See `TASKS.md`. Experiment 1 (A and C baselines) ran on 2026-10-19 (N=5, batched,
-synthetic + ECB EUR/USD data; spec §12-13): C matches A, both at the
-majority/base-rate level.
-Code: branches `feat/experiment-1-*`; raw results in git-ignored `workspace/`. Graph, runtime, escalation remain stubs.
+See `TASKS.md`. Experiment 1 (A, C) ran on synthetic + ECB data: A = C = base
+rate (spec §12-13). Experiment 2 (role-decomposed D vs A', preregistered) has an
+approved design: `docs/superpowers/specs/2026-10-19-experiment-2-role-decomposition-design.md`
+(branch `feat/experiment-2-role-decomposition`, built on `feat/experiment-1-public-data`).
+Raw results stay in git-ignored `workspace/`; `data/` holds the ECB CSV.

@@ -1,7 +1,7 @@
 # Experiment 2: Role-Decomposed Fixed Judges (D) — Design
 
 Date: 2026-10-19
-Status: awaiting owner approval of the full document
+Status: approved by the owner (2026-10-19); next step is the implementation plan
 Builds on: `2026-10-15-experiment-1-fixed-judges-average-design.md` (pipeline,
 storage, data sources, metrics) and its addenda §12-13 (first results).
 Research context: `docs/context/dynamic-judge-network-context.md` §6 (Judge
