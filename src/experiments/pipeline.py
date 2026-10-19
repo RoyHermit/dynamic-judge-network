@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from typing import Protocol
 
 from pydantic import BaseModel
 
@@ -121,10 +122,14 @@ def score_rows(
     return rows
 
 
+class _HasExperimentId(Protocol):
+    experiment_id: str
+
+
 async def write_decisions(
     conn: sqlite3.Connection,
     writer: SqliteStorageWriter,
-    fit: ArmFit,
+    fit: _HasExperimentId,
     rows: list[Row],
     margin: float,
 ) -> None:

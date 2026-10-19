@@ -4,20 +4,42 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
 
 from src.data.factory import same_dataset
 from src.data.schema import Sample
 from src.judges.definitions.high_low import HighLowJudge, replica_index
-from src.judges.interface import JudgeExecutor
+from src.judges.interface import Judge, JudgeExecutor, State
 from src.storage.reader import (
     completed_units,
     load_experiment_config,
     pending_interpretations,
 )
 from src.storage.writer import SqliteStorageWriter
+
+
+class ArmLike(Protocol):
+    """What the runner needs from an arm: units, per-unit state and judges."""
+
+    experiment_id: str
+
+    def units(self) -> list[tuple[int, list[Judge]]]:
+        """(stage_index, judges) execution units for one sample."""
+        ...
+
+    def state_for(self, sample: Sample, stage_index: int) -> State:
+        """State sent to the Judges of the unit at `stage_index`."""
+        ...
+
+    def judge_for(self, judge_id: str) -> Judge:
+        """Rebuild a Judge from a stored id (for re-interpretation)."""
+        ...
+
+    def model_dump(self) -> dict[str, Any]:
+        """Arm fields recorded in the experiment config."""
+        ...
 
 
 class ArmSpec(BaseModel):
@@ -42,6 +64,14 @@ class ArmSpec(BaseModel):
         if self.topology == "batched":
             return [(0, replicas)]
         return [(k, [judge]) for k, judge in enumerate(replicas)]
+
+    def state_for(self, sample: Sample, stage_index: int) -> State:
+        """A and C send the stored sample state unchanged."""
+        return sample.state
+
+    def judge_for(self, judge_id: str) -> HighLowJudge:
+        """Rebuild the High/Low Judge named by a stored id."""
+        return HighLowJudge(self.horizon, replica_index(judge_id))
 
 
 # Keys that define what a stored answer means; resuming with different values
@@ -89,11 +119,11 @@ class _Budget:
 
 
 async def finish_pending_interpretations(
-    conn: sqlite3.Connection, writer: SqliteStorageWriter, spec: ArmSpec
+    conn: sqlite3.Connection, writer: SqliteStorageWriter, spec: ArmLike
 ) -> None:
     """Re-interpret stored raw answers left without a result (no API call)."""
     for call_id, judge_id, answer in pending_interpretations(conn, spec.experiment_id):
-        judge = HighLowJudge(spec.horizon, replica_index(judge_id))
+        judge = spec.judge_for(judge_id)
         try:
             decision = judge.interpret(answer)
         except Exception as exc:  # noqa: BLE001 - recorded, never re-raised
@@ -103,7 +133,7 @@ async def finish_pending_interpretations(
 
 
 async def run_arm(
-    spec: ArmSpec,
+    spec: ArmLike,
     samples: list[Sample],
     executor: JudgeExecutor,
     writer: SqliteStorageWriter,
@@ -153,7 +183,7 @@ async def run_arm(
                 if not budget.take():
                     return
                 await executor.run_stage(
-                    sample.state,
+                    spec.state_for(sample, stage_index),
                     judges,
                     experiment_id=spec.experiment_id,
                     input_id=sample.input_id,
