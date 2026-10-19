@@ -1,7 +1,7 @@
 # Experiment 2: Role-Decomposed Fixed Judges (D) — Design
 
 Date: 2026-10-19
-Status: draft for review
+Status: awaiting owner approval of the full document
 Builds on: `2026-10-15-experiment-1-fixed-judges-average-design.md` (pipeline,
 storage, data sources, metrics) and its addenda §12-13 (first results).
 Research context: `docs/context/dynamic-judge-network-context.md` §6 (Judge
@@ -177,8 +177,8 @@ Both datasets of Experiment 1, each evaluated separately.
   labelled so; a clean confirmation needs data that do not exist yet. The
   synthetic run with a fresh seed is confirmatory for the synthetic claim.
 - Primary dataset for any headline claim: **ECB** (real data); synthetic is the
-  mechanism check where regimes with learnable structure exist. (My call;
-  change if you disagree.)
+  mechanism check where regimes with learnable structure exist (confirmed by
+  the owner).
 
 ## 8. Aggregation and calibration
 
@@ -238,9 +238,16 @@ implementation details (optimiser, regularization grid); how the runner supplies
 a per-Judge state to the existing executor (one state per request); report
 layout.
 
-## 11. Combining datasets and open items
+## 11. Verdict across datasets (decided by the owner)
 
-The rule for combining the two datasets is for the owner to decide (see the
-review question); until decided no claim wording is fixed. The primary dataset
-(§7) and the +3 point minimum useful improvement (§5) are my calls, open until
-the owner confirms them; they are frozen once the plan is approved.
+Each dataset is evaluated separately with the §5 rule, then read as follows:
+
+| ECB (primary) | Synthetic (fresh seed) | Verdict wording |
+|---|---|---|
+| passes | passes | **Strong success**: decomposition helps (attribution wording per §5 only if D also beats A'x5) |
+| passes | fails | **Exploratory success**: positive on real data, but prior knowledge from Experiment 1 informed the design; needs fresh data to confirm |
+| fails | passes | **Mechanism works, no real-data evidence** |
+| fails | fails | **Failure** |
+
+The ECB primary dataset and the +3 point minimum useful improvement (§5) are
+confirmed by the owner and frozen with this design. Nothing is open.
