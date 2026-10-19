@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 import typesafe_sdk as ts
@@ -75,9 +76,18 @@ def _to_dj_answer(provider_answer: _ProviderAnswer) -> Answer:
 class JevStageExecutor:
     """A JudgeExecutor for Jev-backed Judges (spec §3)."""
 
-    def __init__(self, client: ts.AsyncTypeSafeClient, writer: StorageWriter) -> None:
+    def __init__(
+        self,
+        client: ts.AsyncTypeSafeClient,
+        writer: StorageWriter,
+        *,
+        model: str | None = None,
+        extra_body: Mapping[str, Any] | None = None,
+    ) -> None:
         self._client = client
         self._writer = writer
+        self._model = model
+        self._extra_body = extra_body
 
     async def run_stage(
         self,
@@ -96,6 +106,14 @@ class JevStageExecutor:
         call_id = str(uuid.uuid4())
         start = time.monotonic()
 
+        # Options are only passed when set so clients that do not accept
+        # them (and the SDK defaults) behave exactly as before.
+        options: dict[str, Any] = {}
+        if self._model is not None:
+            options["model"] = self._model
+        if self._extra_body is not None:
+            options["extra_body"] = self._extra_body
+
         try:
             response = await self._client.system_one(
                 state=state,
@@ -103,6 +121,7 @@ class JevStageExecutor:
                     judge_id: _to_provider_question(question)
                     for judge_id, question in questions.items()
                 },
+                **options,
             )
         except ts.TypeSafeError as exc:
             latency = time.monotonic() - start
@@ -126,6 +145,8 @@ class JevStageExecutor:
         token_usage = {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
+            "requested_model": self._model,
+            "returned_model": response.model,
         }
         call = CallRecord(
             call_id=call_id,
