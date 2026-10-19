@@ -29,7 +29,11 @@ from src.experiments.runner import ArmSpec, run_arm
 from src.judges.jev_executor import JevStageExecutor
 from src.metrics.report import compare_arms, render_markdown
 from src.storage import db
-from src.storage.reader import load_calls, load_experiment_config
+from src.storage.reader import (
+    completed_units,
+    load_calls,
+    load_experiment_config,
+)
 from src.storage.writer import SqliteStorageWriter
 
 
@@ -96,6 +100,33 @@ def _check_dataset(
         )
 
 
+def _check_complete(
+    conn: sqlite3.Connection, source: SyntheticSource, experiment_id: str
+) -> None:
+    """Refuse to fit before every calib/thresh unit has a recorded call.
+
+    Freezing is irreversible, so fitting on a half-finished run would lock
+    in margins that finishing the run could never repair.
+    """
+    stored = load_experiment_config(conn, experiment_id)
+    if stored is None:
+        raise ValueError(f"unknown experiment {experiment_id!r}")
+    spec = ArmSpec.model_validate({k: stored[k] for k in ArmSpec.model_fields})
+    done = completed_units(conn, experiment_id)
+    stages = [stage for stage, _ in spec.units()]
+    missing = sum(
+        (s.input_id, stage) not in done
+        for split in ("calib", "thresh")
+        for s in source.samples(split)
+        for stage in stages
+    )
+    if missing:
+        raise ValueError(
+            f"{experiment_id!r} is incomplete: {missing} calib/thresh units have "
+            "no recorded call; run them first (or pass --allow-incomplete)"
+        )
+
+
 async def _fit(args: argparse.Namespace) -> None:
     cfg = _load(args.config)
     source = SyntheticSource(cfg.data)
@@ -107,6 +138,8 @@ async def _fit(args: argparse.Namespace) -> None:
     if "fit" in stored:  # re-run after an interruption: reuse the frozen fit
         fit = ArmFit.model_validate(stored["fit"])
     else:
+        if not args.allow_incomplete:
+            _check_complete(conn, source, args.experiment)
         fit = await fit_arm(
             conn,
             writer,
@@ -184,6 +217,11 @@ def main(argv: list[str] | None = None) -> None:
     fit.add_argument("--experiment", required=True)
     fit.add_argument(
         "--decisions-split", choices=["test", "test_shift"], default="test"
+    )
+    fit.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="freeze even if calib/thresh units are missing (irreversible)",
     )
     fit.add_argument(
         "--allow-degenerate",

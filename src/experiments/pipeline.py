@@ -26,8 +26,9 @@ class ArmFit(BaseModel):
     n_expected: int
     calibrator: dict[str, list[float]]
     margins: dict[str, MarginChoice]  # keyed by Exp1Config.target_key
-    # True when calib had no valid sample: every row is then invalid, so a
-    # made-up calibrator can never produce plausible-looking scores.
+    # True when calib or thresh had no valid sample: every row is then
+    # invalid, so made-up calibrators/margins can never produce
+    # plausible-looking scores.
     degenerate: bool = False
 
 
@@ -79,7 +80,7 @@ async def fit_arm(
         experiment_id=experiment_id,
         n_expected=n_expected,
         calibrator=calibrator.to_dict(),
-        degenerate=not pairs,
+        degenerate=not pairs or not thresh_ps,
         margins={
             cfg.target_key(t): (
                 choose_margin(thresh_ps, t, grid)
@@ -92,7 +93,7 @@ async def fit_arm(
     if fit.degenerate and not allow_degenerate:
         # Freezing is irreversible; do not lock in a fit built from no data.
         raise ValueError(
-            f"degenerate fit for {experiment_id!r}: no valid calib sample; "
+            f"degenerate fit for {experiment_id!r}: no valid calib/thresh sample; "
             "check the answers first or pass allow_degenerate"
         )
     await writer.freeze_config(experiment_id, "fit", fit.model_dump())
