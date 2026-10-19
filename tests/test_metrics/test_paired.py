@@ -73,7 +73,9 @@ def test_pairing_uses_same_indices():
     x = _rows_with_accuracy(300, [True, False, True, True, False])
     res = paired_accuracy_diff(x, list(x), [r.input_id for r in x], cfg)
     assert res.diff == 0
-    assert res.ci is not None and res.ci[0] <= 0 <= res.ci[1]
+    # identical noisy arms: every resample pairs the same rows, so every
+    # resampled difference is exactly 0 (an unpaired bootstrap would not be)
+    assert res.ci == (0.0, 0.0)
 
 
 def test_missing_or_invalid_ids_raise():
