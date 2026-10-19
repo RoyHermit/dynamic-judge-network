@@ -1,5 +1,6 @@
 """Tests for the seeded synthetic generator (spec §4)."""
 
+import itertools
 import math
 
 import pytest
@@ -40,7 +41,7 @@ def test_embargo_separates_consecutive_splits():
     cfg = _cfg()
     data = generate(cfg)
     by_split = {sp: [s.t_index for s in data.samples if s.split == sp] for sp in SPLITS}
-    for a, b in zip(SPLITS, SPLITS[1:]):
+    for a, b in itertools.pairwise(SPLITS):
         gap = (min(by_split[b]) - cfg.window + 1) - (max(by_split[a]) + cfg.horizon)
         assert gap >= cfg.embargo_bars
 
