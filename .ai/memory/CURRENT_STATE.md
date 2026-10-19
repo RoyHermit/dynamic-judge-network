@@ -55,6 +55,7 @@ No commits to `main`; push is human-only.
 ## Next step
 
 See `TASKS.md`. Experiment 1 (A and C baselines) ran on 2026-10-19 (N=5, batched,
-synthetic data; spec §12): C matches A, both at or below the majority reference.
+synthetic + ECB EUR/USD data; spec §12-13): C matches A, both at the
+majority/base-rate level.
 Code: branch `feat/experiment-1-fixed-judges-average`; raw results in the
 git-ignored `workspace/exp1.db`. Graph, runtime, escalation remain stubs.

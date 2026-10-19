@@ -5,8 +5,8 @@ Source of truth for tasks. Current state and confirmed constraints live in
 
 ## Next
 
-- [ ] Experiment 1 follow-up: decide how to read the first run (A and C at or below the majority reference; see spec §12). Options: a stronger High/Low prompt or richer state, a larger calibration split / smoother calibrator, then rerun; or move to the public-data swap.
-- [ ] Merge `feat/experiment-1-fixed-judges-average` into `develop` (human).
+- [ ] Experiment 1 follow-up: both synthetic and ECB runs show A = C = base rate (spec §12-13). Decide next step: a stronger High/Low prompt or richer state (indicators), a Choice-question variant, or a smoother calibrator; then rerun.
+- [ ] Merge `feat/experiment-1-fixed-judges-average` and `feat/experiment-1-public-data` into `develop` (human).
 
 ## Waiting (human / external)
 

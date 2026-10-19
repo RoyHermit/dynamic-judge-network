@@ -400,3 +400,20 @@ The dataset id hashes the configuration **and the CSV content**; a replaced
 file is refused on resume, `fit` and `report`. The CSV itself is never
 committed; the human verifies the publisher's licence and attribution terms.
 Synthetic dataset ids are unchanged (the first run still reports identically).
+
+**Public-data run (2026-10-19, study `exp1-ecb`):** ECB EUR/USD daily reference
+rates, 7116 rows (1999-01-04 to 2026-10-16), most recent 5710 bars used; same
+protocol as §12 (N = 5, batched; A run1 and C on all splits, A run2 on test and
+test_shift; pilot variance as before: mean std 0.015-0.018, no input straddling
+0.5). About 2.1M input / 0.14M output tokens, no failures.
+
+| split | A acc (cov) | C acc (cov) | majority | momentum | HIGH share |
+|---|---|---|---|---|---|
+| test (n=297) | 0.482 (1.0) | 0.483 (0.997) | 0.481 | 0.515 | 0.481 |
+| test_shift (n=295) | 0.454 (1.0) | 0.451 (1.0) | 0.454 | 0.515 | 0.454 |
+
+C minus A: 95% CI (-0.010, 0.012) on test and (-0.017, 0.007) on test_shift.
+Both arms equal the always-HIGH reference (the calibrator learns the `calib`
+HIGH share of 0.58, which falls to 0.48 / 0.45 on test / test_shift), i.e. the
+Judge signal adds essentially no information beyond the base rate on this
+data. Brier / log loss on test: A 0.264 / 0.875, C 0.268 / 0.733.
