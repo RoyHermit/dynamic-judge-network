@@ -50,10 +50,12 @@ venv/bin/python -m src.experiments.exp2_cli pilot-check --config $C
 ```
 
 **Gate before stage 2.** `pilot-check` prints the `PilotCheck` JSON and exits
-with code 1 when a §9 stop rule fires: an arm's invalid rate above 5%, any
+with code 1 when a §9 stop rule fires or any of the five arms has no stored
+pilot run ("missing pilot arm ..."): an arm's invalid rate above 5%, any
 NaN/infinite indicator, or a Judge whose probability std across pilot inputs
 is below 0.01 (reported as uninformative). On a stop, do not continue: report
-the reasons. The pilot may only stop the run or expose a definite defect; a
+the reasons. `--arms` restricts the check to a subset for diagnostics only;
+the gate is the default (all five arms). The pilot may only stop the run or expose a definite defect; a
 defect fix means the pilot is rerun, and prompts are never tuned for
 accuracy. Also read the measured token budget before approving stage 2.
 
@@ -104,9 +106,11 @@ venv/bin/python -m src.experiments.exp2_cli report --config $C --split test_shif
 ```
 
 After stage 2 only, a preliminary `test` report (no A'x5, no attribution,
-verdict not final) is available:
+verdict not final) is available. Fit D and A' first, then report:
 
 ```bash
+venv/bin/python -m src.experiments.exp2_cli fit --config $C --arm D
+venv/bin/python -m src.experiments.exp2_cli fit --config $C --arm Ap
 venv/bin/python -m src.experiments.exp2_cli report --config $C --split test --arms D Ap --preliminary
 ```
 

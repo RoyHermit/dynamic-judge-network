@@ -40,8 +40,8 @@ def load_config(path: str) -> Exp2Config:
     return Exp2Config.model_validate_json(Path(path).read_text())
 
 
-def _spec(cfg: Exp2Config, arm: str, study_id: str | None = None) -> ArmLike:
-    return arm_spec(study_id or cfg.study_id, arm, cfg.n_replicas, cfg.data.horizon)
+def _spec(cfg: Exp2Config, arm: str) -> ArmLike:
+    return arm_spec(cfg.study_id, arm, cfg.n_replicas, cfg.data.horizon)
 
 
 async def _run(args: argparse.Namespace) -> None:
@@ -49,7 +49,7 @@ async def _run(args: argparse.Namespace) -> None:
     Settings.load()  # fail fast if the credential is missing; value unused
     cfg = load_config(args.config)
     source = load_source(cfg.data)
-    spec = _spec(cfg, args.arm, args.study_id)
+    spec = _spec(cfg, args.arm)
     Path(cfg.db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = db.connect(cfg.db_path)
     writer = SqliteStorageWriter(conn)
@@ -79,16 +79,27 @@ async def _run(args: argparse.Namespace) -> None:
 
 
 def _pilot_check(args: argparse.Namespace) -> None:
-    """Print the §9 stop-rule outcome for the stored arms; exit 1 on stop."""
+    """Print the §9 stop-rule outcome; exit 1 on stop.
+
+    Every requested arm (default: all five LLM arms) must have been run; a
+    missing arm is a stop reason, never silently skipped.
+    """
     cfg = load_config(args.config)
     source = load_source(cfg.data)
     conn = db.connect(cfg.db_path)
     experiments = {}
-    for arm in LLM_ARMS:
+    missing = []
+    for arm in args.arms:
         eid = _spec(cfg, arm).experiment_id
-        if load_experiment_config(conn, eid) is not None:  # only arms that ran
+        if load_experiment_config(conn, eid) is None:
+            missing.append(f"missing pilot arm {eid}")
+        else:
             experiments[eid] = n_expected(arm, cfg.n_replicas)
     check = pilot_check(conn, experiments, source.samples("pilot"), cfg)
+    if missing:
+        check = check.model_copy(
+            update={"stop": True, "reasons": missing + check.reasons}
+        )
     print(json.dumps(check.model_dump(), indent=2))
     if check.stop:
         sys.exit(1)
@@ -129,6 +140,12 @@ async def _fit(args: argparse.Namespace) -> None:
     if stored is None:
         raise ValueError(f"unknown experiment {eid!r}; run the arm first")
     _check_dataset(conn, cfg, eid)
+    for key, current in (("n_replicas", cfg.n_replicas), ("horizon", cfg.data.horizon)):
+        if key in stored and stored[key] != current:
+            raise ValueError(
+                f"experiment {eid!r} was run with {key}={stored[key]!r}, "
+                f"but the config has {current!r}"
+            )
     frozen = stored.get("frozen", {})
     if "fit" in frozen:  # re-run after an interruption: reuse the frozen fit
         fit = Exp2Fit.model_validate(frozen["fit"])
@@ -181,6 +198,10 @@ def _dataset_lines(name: str, verdict: DatasetVerdict) -> list[str]:
 
 def _verdict(args: argparse.Namespace) -> None:
     """Combine the ECB (primary) and synthetic `test` verdicts (§11)."""
+    if load_config(args.ecb_config).data.source != "ecb_csv":
+        raise ValueError("--ecb-config must describe ECB data (source 'ecb_csv')")
+    if load_config(args.synthetic_config).data.source != "synthetic":
+        raise ValueError("--synthetic-config must describe synthetic data")
     verdicts = {}
     for name, path in (("ECB", args.ecb_config), ("synthetic", args.synthetic_config)):
         report = load_report(path, "test", list(LLM_ARMS), preliminary=False)
@@ -202,14 +223,16 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--arm", choices=list(LLM_ARMS), required=True)
     run.add_argument("--split", choices=list(SPLITS), required=True)
     run.add_argument("--max-units", type=int, default=None)
-    run.add_argument(
-        "--study-id",
-        default=None,
-        help="override config study_id (fit/report always use the config's)",
-    )
 
     pc = sub.add_parser("pilot-check", help="§9 stop rules on the pilot split")
     pc.add_argument("--config", required=True)
+    pc.add_argument(
+        "--arms",
+        nargs="+",
+        choices=list(LLM_ARMS),
+        default=list(LLM_ARMS),
+        help="arms that must be present (default: all five; subsets are diagnostic)",
+    )
 
     fit = sub.add_parser("fit", help="freeze Platt fit + margins, write decisions")
     fit.add_argument("--config", required=True)

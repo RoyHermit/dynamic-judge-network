@@ -55,10 +55,13 @@ class RoleClient:
 
 def small_config(tmp_path: Path, name: str = "exp2", **update: Any) -> Path:
     """Write a small synthetic Exp2 config into `tmp_path`; return its path."""
+    data = update.pop("data", None) or SyntheticConfig(
+        seed=11, split_sizes=dict(SMALL_SIZES)
+    )
     cfg = Exp2Config(
         study_id=name,
         db_path=str(tmp_path / f"{name}.db"),
-        data=SyntheticConfig(seed=11, split_sizes=dict(SMALL_SIZES)),
+        data=data,
         bootstrap_resamples=100,
         bootstrap_block_len=12,
         **update,
