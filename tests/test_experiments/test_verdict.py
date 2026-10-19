@@ -13,10 +13,12 @@ def pd(diff: float | None, lo: float | None = 0.01) -> PairedDiff:
 
 
 def good() -> PairedDiff:
+    """A comparison that clears every criterion."""
     return pd(0.05, 0.01)
 
 
 def verdict(**over: PairedDiff | None) -> DatasetVerdict:
+    """Evaluate a dataset with all-good defaults, overriding selected inputs."""
     args: dict[str, PairedDiff | None] = {
         "d_vs_ap": good(),
         "d_vs_majority": good(),
@@ -84,3 +86,33 @@ def test_missing_ap5_leaves_attribution_none() -> None:
     assert v.attributable is None
     _, text = combine(v, v)
     assert "not separable" in text
+
+
+def test_gain_boundary_inclusive() -> None:
+    assert verdict(d_vs_ap=pd(0.03, 0.01)).criteria["D>A' (+3pt)"] is True
+
+
+def test_ci_lower_bound_zero_is_not_met() -> None:
+    zero = pd(0.05, 0.0)
+    v = verdict(d_vs_ap=zero, d_vs_majority=zero)
+    assert v.criteria["D>A' (+3pt)"] is False
+    assert v.criteria["D>Majority"] is False
+
+
+def test_gain_tolerates_float_rounding() -> None:
+    for d in (0.83 - 0.80, 0.58 - 0.55):
+        assert d < 0.03  # mathematically 0.03 but just below in floats
+        assert verdict(d_vs_ap=pd(d, 0.01)).criteria["D>A' (+3pt)"] is True
+
+
+def test_small_diff_passes_criteria_two() -> None:
+    small = pd(0.005, 0.001)
+    v = verdict(d_vs_majority=small, d_vs_l=small, d_vs_m=small)
+    assert v.passed is True
+
+
+def test_ci_present_but_diff_none_is_not_met() -> None:
+    odd = PairedDiff(n=10, acc_x=None, acc_y=None, diff=None, ci=(0.01, 0.05))
+    v = verdict(d_vs_ap=odd)
+    assert v.criteria["D>A' (+3pt)"] is False
+    assert any("A'" in n for n in v.notes)

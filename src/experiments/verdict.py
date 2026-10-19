@@ -4,6 +4,9 @@ from pydantic import BaseModel, Field
 
 from src.metrics.paired import PairedDiff
 
+# Tolerance for float rounding of count-ratio differences, not a tunable threshold.
+_FLOAT_TOL = 1e-9
+
 
 class DatasetVerdict(BaseModel):
     """Outcome of the success rule on one dataset."""
@@ -40,8 +43,8 @@ def evaluate_dataset(
         "D>A' (+3pt)": (
             not unusable(d_vs_ap, "D vs A'")
             and _ci_above_zero(d_vs_ap)
-            and d_vs_ap.diff is not None
-            and d_vs_ap.diff >= min_gain
+            and d_vs_ap.diff is not None  # narrowing for type checkers only
+            and d_vs_ap.diff >= min_gain - _FLOAT_TOL
         ),
         "D>Majority": not unusable(d_vs_majority, "D vs Majority")
         and _ci_above_zero(d_vs_majority),
