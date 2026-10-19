@@ -4,3 +4,7 @@ __pycache__/
 venv/
 .streamlit/secrets.toml
 workspace/logs/
+workspace/
+*.db
+*.db-wal
+*.db-shm
