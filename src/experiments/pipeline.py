@@ -55,6 +55,8 @@ async def fit_arm(
     calib: list[Sample],
     thresh: list[Sample],
     cfg: Exp1Config,
+    *,
+    allow_degenerate: bool = True,
 ) -> ArmFit:
     """Fit the calibrator on `calib`, choose margins on `thresh`, freeze both."""
     means = raw_means(conn, experiment_id, n_expected, calib)
@@ -87,6 +89,12 @@ async def fit_arm(
             for t in cfg.coverage_targets
         },
     )
+    if fit.degenerate and not allow_degenerate:
+        # Freezing is irreversible; do not lock in a fit built from no data.
+        raise ValueError(
+            f"degenerate fit for {experiment_id!r}: no valid calib sample; "
+            "check the answers first or pass allow_degenerate"
+        )
     await writer.freeze_config(experiment_id, "fit", fit.model_dump())
     return fit
 

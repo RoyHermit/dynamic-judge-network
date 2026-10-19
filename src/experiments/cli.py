@@ -21,7 +21,7 @@ from src.data.baselines import (
     majority_label,
 )
 from src.data.schema import SPLITS
-from src.data.synthetic import SyntheticSource
+from src.data.synthetic import SyntheticSource, same_dataset
 from src.experiments.config import Exp1Config
 from src.experiments.pilot import collect_replica_probs, pilot_stats
 from src.experiments.pipeline import ArmFit, fit_arm, score_rows, write_decisions
@@ -90,7 +90,7 @@ def _check_dataset(
 ) -> None:
     """Refuse to score stored answers against a regenerated, different dataset."""
     stored = (load_experiment_config(conn, experiment_id) or {}).get("data")
-    if stored is not None and stored != cfg.data.model_dump():
+    if stored is not None and not same_dataset(stored, cfg.data.model_dump()):
         raise ValueError(
             f"config describes a different dataset than experiment {experiment_id!r}"
         )
@@ -115,6 +115,7 @@ async def _fit(args: argparse.Namespace) -> None:
             source.samples("calib"),
             source.samples("thresh"),
             cfg,
+            allow_degenerate=args.allow_degenerate,
         )
     rows = score_rows(conn, fit, source.samples(args.decisions_split))
     headline = fit.margins[cfg.target_key(cfg.headline_coverage)].margin
@@ -183,6 +184,11 @@ def main(argv: list[str] | None = None) -> None:
     fit.add_argument("--experiment", required=True)
     fit.add_argument(
         "--decisions-split", choices=["test", "test_shift"], default="test"
+    )
+    fit.add_argument(
+        "--allow-degenerate",
+        action="store_true",
+        help="freeze even if calib had no valid sample (irreversible)",
     )
 
     rep = sub.add_parser("report", help="compare A and C on one evaluation split")

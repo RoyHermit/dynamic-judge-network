@@ -9,6 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from src.data.schema import Sample
+from src.data.synthetic import same_dataset
 from src.judges.definitions.high_low import HighLowJudge, replica_index
 from src.judges.interface import JudgeExecutor
 from src.storage.reader import (
@@ -53,7 +54,15 @@ def _check_identity(
 ) -> None:
     stored = load_experiment_config(conn, experiment_id) or {}
     for key in _IDENTITY_KEYS:
-        if key in config and key in stored and stored[key] != config[key]:
+        if key not in config or key not in stored:
+            continue
+        # `data` is compared by generated-dataset identity, not dict equality
+        same = (
+            same_dataset(stored[key], config[key])
+            if key == "data"
+            else stored[key] == config[key]
+        )
+        if not same:
             raise ValueError(
                 f"experiment {experiment_id!r} was created with a different "
                 f"{key!r}; use another study_id instead of resuming"

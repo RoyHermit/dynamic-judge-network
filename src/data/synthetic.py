@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import random
 
@@ -97,13 +98,29 @@ class _Walk:
         return math.exp(self._x), self._regime
 
 
+def _canonical(cfg: SyntheticConfig) -> str:
+    payload = cfg.model_dump(mode="json")
+    # Regime order changes the generated series, so keep it as an ordered
+    # list; every other dict is key-sorted so cosmetic reordering of e.g.
+    # split_sizes does not change the dataset identity.
+    payload["regimes"] = [[name, p] for name, p in payload["regimes"].items()]
+    return json.dumps(payload, sort_keys=True)
+
+
 def dataset_id(cfg: SyntheticConfig) -> str:
     """Short stable id of the full generator configuration.
 
     Prefixing input ids with it keeps two datasets (e.g. different seeds)
     from colliding in the shared `inputs` table.
     """
-    return hashlib.sha256(cfg.model_dump_json().encode()).hexdigest()[:8]
+    return hashlib.sha256(_canonical(cfg).encode()).hexdigest()[:8]
+
+
+def same_dataset(a: dict, b: dict) -> bool:
+    """True if two stored `SyntheticConfig` dumps generate the same data."""
+    return dataset_id(SyntheticConfig.model_validate(a)) == dataset_id(
+        SyntheticConfig.model_validate(b)
+    )
 
 
 def generate(cfg: SyntheticConfig) -> GeneratedData:

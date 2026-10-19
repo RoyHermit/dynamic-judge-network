@@ -280,3 +280,28 @@ async def test_fit_and_report_refuse_a_different_dataset(tmp_path):
     argv += ["--experiment", spec_c.experiment_id]
     with pytest.raises(ValueError, match="different dataset"):
         await asyncio.to_thread(main, argv)
+
+
+async def test_fit_command_refuses_to_freeze_a_degenerate_fit_unless_allowed(tmp_path):
+    from src.experiments.cli import main
+    from src.storage.reader import load_experiment_config
+
+    cfg, path = _cli_config(tmp_path)
+    conn = db.connect(cfg.db_path)
+    writer = SqliteStorageWriter(conn)
+    source = SyntheticSource(cfg.data)
+    spec_c = ArmSpec(study_id=cfg.study_id, arm="C", n_replicas=5, horizon=5)
+    executor = JevStageExecutor(DropFirstReplicaClient(), writer)  # nothing valid
+    for split in ("calib", "thresh", "test"):
+        await run_arm(spec_c, source.samples(split), executor, writer, conn)
+
+    argv = ["fit", "--config", str(path), "--arm", "C"]
+    argv += ["--experiment", spec_c.experiment_id]
+    with pytest.raises(ValueError, match="degenerate"):
+        await asyncio.to_thread(main, argv)
+    stored = load_experiment_config(conn, spec_c.experiment_id)
+    assert "frozen" not in stored  # nothing irreversible was written
+
+    await asyncio.to_thread(main, [*argv, "--allow-degenerate"])
+    stored = load_experiment_config(conn, spec_c.experiment_id)
+    assert stored["frozen"]["fit"]["degenerate"] is True

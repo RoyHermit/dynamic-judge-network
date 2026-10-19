@@ -85,3 +85,23 @@ def test_epsilon_zero_still_excludes_exact_ties():
     data = generate(_cfg(epsilon=0.0, regimes=flat))
     assert data.samples == []
     assert data.excluded == SIZES
+
+
+def test_dataset_id_ignores_split_size_key_order_but_not_regime_order():
+    from src.data.synthetic import RegimeParams, dataset_id, same_dataset
+
+    reordered = {k: SIZES[k] for k in reversed(list(SIZES))}
+    a = SyntheticConfig(seed=1, split_sizes=SIZES)
+    b = SyntheticConfig(seed=1, split_sizes=reordered)
+    assert dataset_id(a) == dataset_id(b)
+    assert same_dataset(a.model_dump(), b.model_dump())
+
+    regimes = {
+        "random_walk": RegimeParams(vol=0.01),
+        "trend": RegimeParams(drift=0.002, vol=0.01),
+    }
+    swapped = dict(reversed(list(regimes.items())))  # changes the generated data
+    c = SyntheticConfig(seed=1, split_sizes=SIZES, regimes=regimes)
+    d = SyntheticConfig(seed=1, split_sizes=SIZES, regimes=swapped)
+    assert dataset_id(c) != dataset_id(d)
+    assert not same_dataset(c.model_dump(), d.model_dump())

@@ -3239,7 +3239,7 @@ These steps spend real API budget and use the real credential; a human runs them
 
 - [ ] **Step 1: Prepare** — copy `configs/exp1.example.json` to `configs/exp1.json`, set `pricing` (with its source) if known, and make sure the credential is available in the local environment file (do not print it).
 
-- [ ] **Step 2: Pilot** (small budget; adjust `--max-units`):
+- [ ] **Step 2: Pilot** (small budget; adjust `--max-units`). Run every pilot command with `--study-id exp1-pilot` and read results from the `exp1-pilot-*` experiments, so changing the split sizes in Step 3 never has to resume pilot experiments (the `pilot-stats` commands below then take `exp1-pilot-C-batched` etc.):
 
 ```bash
 venv/bin/python -m src.experiments.cli run --config configs/exp1.json --arm C --topology batched --split pilot --max-units 60

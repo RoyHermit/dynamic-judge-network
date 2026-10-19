@@ -126,7 +126,7 @@ class SqliteStorageWriter:
                     " VALUES (?, ?, ?, ?)",
                     (
                         experiment_id,
-                        json.dumps(config, sort_keys=True),
+                        json.dumps(config),
                         aggregator_version,
                         now,
                     ),
@@ -149,7 +149,7 @@ class SqliteStorageWriter:
                 frozen[key] = value
                 self._conn.execute(
                     "UPDATE experiments SET config_json = ? WHERE experiment_id = ?",
-                    (json.dumps(config, sort_keys=True), experiment_id),
+                    (json.dumps(config), experiment_id),
                 )
 
     async def record_input(
