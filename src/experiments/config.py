@@ -36,9 +36,15 @@ class Exp1Config(BaseModel):
     invalid_warn_rate: float = 0.05
 
     @model_validator(mode="after")
-    def _headline_is_a_target(self) -> Exp1Config:
+    def _validate(self) -> Exp1Config:
         if self.headline_coverage not in self.coverage_targets:
             raise ValueError("headline_coverage must be one of coverage_targets")
+        needed = -(-self.data.window // self.data.stride)  # ceil(window / stride)
+        if self.bootstrap_block_len < needed:
+            raise ValueError(
+                f"bootstrap_block_len must be >= window / stride ({needed}) so "
+                "overlapping input windows stay in one block"
+            )
         return self
 
     @staticmethod

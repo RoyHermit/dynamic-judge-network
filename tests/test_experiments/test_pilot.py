@@ -59,3 +59,14 @@ def test_example_config_loads():
     text = Path("configs/exp1.example.json").read_text()
     cfg = Exp1Config.model_validate_json(text)
     assert cfg.n_replicas == 5 and cfg.headline_coverage in cfg.coverage_targets
+
+
+def test_bootstrap_block_must_cover_window_over_stride():
+    from pydantic import ValidationError
+
+    from src.data.synthetic import SyntheticConfig
+
+    data = SyntheticConfig(window=120, stride=5)
+    with pytest.raises(ValidationError):
+        Exp1Config(data=data, bootstrap_block_len=12)  # needs >= 24
+    assert Exp1Config(data=data, bootstrap_block_len=24).bootstrap_block_len == 24

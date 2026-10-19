@@ -26,6 +26,9 @@ class ArmFit(BaseModel):
     n_expected: int
     calibrator: dict[str, list[float]]
     margins: dict[str, MarginChoice]  # keyed by Exp1Config.target_key
+    # True when calib had no valid sample: every row is then invalid, so a
+    # made-up calibrator can never produce plausible-looking scores.
+    degenerate: bool = False
 
 
 def raw_means(
@@ -74,6 +77,7 @@ async def fit_arm(
         experiment_id=experiment_id,
         n_expected=n_expected,
         calibrator=calibrator.to_dict(),
+        degenerate=not pairs,
         margins={
             cfg.target_key(t): (
                 choose_margin(thresh_ps, t, grid)
@@ -95,7 +99,7 @@ def score_rows(
     means = raw_means(conn, fit.experiment_id, fit.n_expected, samples)
     rows = []
     for s in samples:
-        mean = means[s.input_id]
+        mean = None if fit.degenerate else means[s.input_id]
         rows.append(
             Row(
                 input_id=s.input_id,

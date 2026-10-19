@@ -45,7 +45,7 @@ class ArmSpec(BaseModel):
 
 # Keys that define what a stored answer means; resuming with different values
 # would pair old answers with a new dataset or model (spec §9.1).
-_IDENTITY_KEYS = ("data", "requested_model", "extra_body")
+_IDENTITY_KEYS = ("data", "requested_model", "extra_body", "n_replicas", "horizon")
 
 
 def _check_identity(

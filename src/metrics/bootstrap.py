@@ -34,6 +34,10 @@ def paired_block_ci(
     """Percentile CI of `stat` over resampled index lists; None if `stat`
     is undefined for every resample. The same indices feed both arms
     because `stat` closes over paired data (paired resampling)."""
+    if n < 2 * block_len:
+        # Fewer than two blocks: every resample repeats the original sample
+        # and the CI would collapse to a misleading zero width.
+        return None
     rng = random.Random(seed)
     values = []
     for _ in range(n_resamples):

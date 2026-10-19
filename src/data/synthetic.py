@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
 import random
 
@@ -96,6 +97,15 @@ class _Walk:
         return math.exp(self._x), self._regime
 
 
+def dataset_id(cfg: SyntheticConfig) -> str:
+    """Short stable id of the full generator configuration.
+
+    Prefixing input ids with it keeps two datasets (e.g. different seeds)
+    from colliding in the shared `inputs` table.
+    """
+    return hashlib.sha256(cfg.model_dump_json().encode()).hexdigest()[:8]
+
+
 def generate(cfg: SyntheticConfig) -> GeneratedData:
     """Generate one continuous series cut into consecutive split blocks.
 
@@ -103,6 +113,7 @@ def generate(cfg: SyntheticConfig) -> GeneratedData:
     window or label crosses a split boundary (spec §4.4).
     """
     rng = random.Random(cfg.seed)
+    prefix = dataset_id(cfg)
     walk = _Walk(cfg, rng)
     bars: list[float] = []
     regimes: list[Regime] = []
@@ -129,12 +140,12 @@ def generate(cfg: SyntheticConfig) -> GeneratedData:
         for j in range(n_candidates):
             i = start + cfg.window - 1 + j * cfg.stride
             ret = math.log(bars[i + cfg.horizon] / bars[i])
-            if abs(ret) < cfg.epsilon:
+            if abs(ret) <= cfg.epsilon:  # also excludes exact ties at epsilon=0
                 excluded[split] += 1
                 continue
             samples.append(
                 Sample(
-                    input_id=f"{split}-{i:06d}",
+                    input_id=f"{prefix}-{split}-{i:06d}",
                     state={
                         "bars": [round(b, 4) for b in bars[i - cfg.window + 1 : i + 1]]
                     },

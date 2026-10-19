@@ -12,6 +12,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 Decision = Literal["HIGH", "LOW", "SKIP"]
+_EPS = 1e-12
 
 
 def mean_probability(values: list[float], n_expected: int) -> float | None:
@@ -69,9 +70,11 @@ def decide(p: float, m: float) -> Decision:
     Inclusive at the margin boundary for m > 0; exactly p = 0.5 is always
     SKIP so the two branches are mutually exclusive at m = 0.
     """
-    if p > 0.5 and p >= 0.5 + m:
+    # Compare distances from 0.5 with a tiny tolerance: 0.5 - 0.4 is not
+    # exactly 0.1 in floating point, and the boundary is inclusive.
+    if p > 0.5 and p - 0.5 >= m - _EPS:
         return "HIGH"
-    if p < 0.5 and p <= 0.5 - m:
+    if p < 0.5 and 0.5 - p >= m - _EPS:
         return "LOW"
     return "SKIP"
 

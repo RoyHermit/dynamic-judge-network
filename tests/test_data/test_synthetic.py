@@ -68,3 +68,20 @@ def test_stride_must_cover_horizon_and_embargo_must_cover_window_plus_horizon():
 def test_source_returns_split_samples_only():
     source = SyntheticSource(_cfg())
     assert {s.split for s in source.samples("calib")} == {"calib"}
+
+
+def test_input_ids_do_not_collide_across_datasets():
+    a = {s.input_id for s in generate(_cfg()).samples}
+    b = {
+        s.input_id for s in generate(SyntheticConfig(seed=9, split_sizes=SIZES)).samples
+    }
+    assert a.isdisjoint(b)
+
+
+def test_epsilon_zero_still_excludes_exact_ties():
+    from src.data.synthetic import RegimeParams
+
+    flat = {"random_walk": RegimeParams(vol=0.0)}  # price never moves
+    data = generate(_cfg(epsilon=0.0, regimes=flat))
+    assert data.samples == []
+    assert data.excluded == SIZES

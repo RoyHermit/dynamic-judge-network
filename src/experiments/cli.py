@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sqlite3
 from pathlib import Path
 
 import typesafe_sdk as ts
@@ -28,7 +29,7 @@ from src.experiments.runner import ArmSpec, run_arm
 from src.judges.jev_executor import JevStageExecutor
 from src.metrics.report import compare_arms, render_markdown
 from src.storage import db
-from src.storage.reader import load_calls
+from src.storage.reader import load_calls, load_experiment_config
 from src.storage.writer import SqliteStorageWriter
 
 
@@ -84,21 +85,37 @@ def _pilot_stats(args: argparse.Namespace) -> None:
     print(json.dumps(stats.model_dump(), indent=2))
 
 
+def _check_dataset(
+    conn: sqlite3.Connection, cfg: Exp1Config, experiment_id: str
+) -> None:
+    """Refuse to score stored answers against a regenerated, different dataset."""
+    stored = (load_experiment_config(conn, experiment_id) or {}).get("data")
+    if stored is not None and stored != cfg.data.model_dump():
+        raise ValueError(
+            f"config describes a different dataset than experiment {experiment_id!r}"
+        )
+
+
 async def _fit(args: argparse.Namespace) -> None:
     cfg = _load(args.config)
     source = SyntheticSource(cfg.data)
     conn = db.connect(cfg.db_path)
     writer = SqliteStorageWriter(conn)
+    _check_dataset(conn, cfg, args.experiment)
     n_expected = 1 if args.arm == "A" else cfg.n_replicas
-    fit = await fit_arm(
-        conn,
-        writer,
-        args.experiment,
-        n_expected,
-        source.samples("calib"),
-        source.samples("thresh"),
-        cfg,
-    )
+    stored = (load_experiment_config(conn, args.experiment) or {}).get("frozen", {})
+    if "fit" in stored:  # re-run after an interruption: reuse the frozen fit
+        fit = ArmFit.model_validate(stored["fit"])
+    else:
+        fit = await fit_arm(
+            conn,
+            writer,
+            args.experiment,
+            n_expected,
+            source.samples("calib"),
+            source.samples("thresh"),
+            cfg,
+        )
     rows = score_rows(conn, fit, source.samples(args.decisions_split))
     headline = fit.margins[cfg.target_key(cfg.headline_coverage)].margin
     await write_decisions(conn, writer, fit, rows, headline)
@@ -111,6 +128,8 @@ def _report(args: argparse.Namespace) -> None:
     cfg = _load(args.config)
     source = SyntheticSource(cfg.data)
     conn = db.connect(cfg.db_path)
+    _check_dataset(conn, cfg, args.a_experiment)
+    _check_dataset(conn, cfg, args.c_experiment)
 
     def frozen_fit(experiment_id: str) -> ArmFit:
         row = conn.execute(

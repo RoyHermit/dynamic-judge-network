@@ -164,3 +164,13 @@ async def test_resuming_with_a_different_data_or_model_config_is_refused(env, sa
     ):
         with pytest.raises(ValueError, match="different"):
             await run_arm(spec, samples, executor, writer, conn, config_extra=changed)
+
+
+async def test_resuming_with_a_different_replica_count_is_refused(env, samples):
+    conn, writer = env
+    executor = JevStageExecutor(FakeJevClient(), writer)
+    five = ArmSpec(study_id="s", arm="C", topology="separate", n_replicas=5, horizon=5)
+    six = five.model_copy(update={"n_replicas": 6})
+    await run_arm(five, samples, executor, writer, conn, max_units=2)
+    with pytest.raises(ValueError, match="different"):
+        await run_arm(six, samples, executor, writer, conn)

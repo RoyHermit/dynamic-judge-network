@@ -25,7 +25,7 @@ def _rows(spec) -> list[Row]:
     ]
 
 
-CFG = Exp1Config(bootstrap_resamples=50, bootstrap_block_len=2)
+CFG = Exp1Config(bootstrap_resamples=50, bootstrap_block_len=12)
 
 
 def test_common_valid_set_excludes_samples_invalid_in_either_arm():

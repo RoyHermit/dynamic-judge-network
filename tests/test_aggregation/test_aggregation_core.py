@@ -68,3 +68,10 @@ def test_choose_margin_rejects_empty_input_and_margin_grid_spans_half():
         choose_margin([], 0.8, [0.0])
     grid = margin_grid(0.1)
     assert grid[0] == 0.0 and grid[-1] == 0.5 and len(grid) == 6
+
+
+def test_decide_boundary_survives_float_subtraction():
+    # 0.5 - 0.4 is 0.09999999999999998 in floating point; the boundary is inclusive.
+    assert decide(0.1, 0.4) == "LOW"
+    assert decide(0.9, 0.4) == "HIGH"
+    assert decide(0.15, 0.4) == "SKIP"

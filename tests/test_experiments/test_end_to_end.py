@@ -56,7 +56,7 @@ CFG = Exp1Config(
         },
     ),
     bootstrap_resamples=30,
-    bootstrap_block_len=3,
+    bootstrap_block_len=12,
 )
 
 
@@ -205,3 +205,78 @@ async def test_fit_command_freezes_fits_and_writes_decisions(tmp_path):
     assert '"frozen"' in frozen and '"fit"' in frozen
     n = conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
     assert n == len(source.samples("test"))
+
+
+async def test_calibration_without_valid_samples_makes_every_row_invalid(tmp_path):
+    conn = db.connect(tmp_path / "t.db")
+    writer = SqliteStorageWriter(conn)
+    source = SyntheticSource(CFG.data)
+    spec_c = ArmSpec(study_id="e", arm="C", topology="batched", n_replicas=5, horizon=5)
+    # calib answers are incomplete, but thresh/test answers are perfectly valid
+    bad, good = JevStageExecutor(DropFirstReplicaClient(), writer), JevStageExecutor(
+        StateAwareClient(), writer
+    )
+    await run_arm(spec_c, source.samples("calib"), bad, writer, conn)
+    for split in ("thresh", "test"):
+        await run_arm(spec_c, source.samples(split), good, writer, conn)
+
+    calib, thresh, test = (source.samples(s) for s in ("calib", "thresh", "test"))
+    fit = await fit_arm(conn, writer, spec_c.experiment_id, 5, calib, thresh, CFG)
+    assert fit.degenerate
+    # a made-up calibrator must not turn valid raw answers into plausible scores
+    assert all(r.p is None for r in score_rows(conn, fit, test))
+
+
+def _cli_config(tmp_path, **update):
+    cfg = CFG.model_copy(update={"db_path": str(tmp_path / "f.db"), **update})
+    path = tmp_path / "cfg.json"
+    path.write_text(cfg.model_dump_json())
+    return cfg, path
+
+
+async def test_fit_command_is_idempotent_and_serves_another_split(tmp_path):
+    from src.experiments.cli import main
+
+    cfg, path = _cli_config(tmp_path)
+    conn = db.connect(cfg.db_path)
+    writer = SqliteStorageWriter(conn)
+    source = SyntheticSource(cfg.data)
+    spec_c = ArmSpec(study_id=cfg.study_id, arm="C", n_replicas=5, horizon=5)
+    await _run_all(conn, writer, StateAwareClient(), [spec_c], source)
+    conn.close()
+
+    base = ["fit", "--config", str(path), "--arm", "C"]
+    base += ["--experiment", spec_c.experiment_id]
+    await asyncio.to_thread(main, base)
+    await asyncio.to_thread(
+        main, base
+    )  # re-run after an interruption: reuse the freeze
+    await asyncio.to_thread(main, [*base, "--decisions-split", "test_shift"])
+
+
+async def test_fit_and_report_refuse_a_different_dataset(tmp_path):
+    from src.experiments.cli import main
+
+    cfg, _ = _cli_config(tmp_path)
+    conn = db.connect(cfg.db_path)
+    writer = SqliteStorageWriter(conn)
+    source = SyntheticSource(cfg.data)
+    spec_c = ArmSpec(study_id=cfg.study_id, arm="C", n_replicas=5, horizon=5)
+    executor = JevStageExecutor(StateAwareClient(), writer)
+    for split in ("calib", "thresh", "test"):
+        await run_arm(
+            spec_c,
+            source.samples(split),
+            executor,
+            writer,
+            conn,
+            config_extra={"data": cfg.data.model_dump()},
+        )
+    conn.close()
+
+    other = cfg.data.model_copy(update={"seed": 99})
+    _, other_path = _cli_config(tmp_path, data=other)
+    argv = ["fit", "--config", str(other_path), "--arm", "C"]
+    argv += ["--experiment", spec_c.experiment_id]
+    with pytest.raises(ValueError, match="different dataset"):
+        await asyncio.to_thread(main, argv)

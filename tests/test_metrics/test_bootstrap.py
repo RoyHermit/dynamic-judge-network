@@ -23,3 +23,9 @@ def test_ci_brackets_a_constant_statistic_and_returns_none_when_undefined():
     ci = paired_block_ci(20, 5, 50, 0, lambda idx: 0.25)
     assert ci == (0.25, 0.25)
     assert paired_block_ci(20, 5, 50, 0, lambda idx: None) is None
+
+
+def test_ci_is_undefined_when_there_are_fewer_than_two_blocks():
+    # Every resample would repeat the original sample: a zero-width CI would lie.
+    assert paired_block_ci(8, 12, 50, 0, lambda idx: 0.1) is None
+    assert paired_block_ci(24, 12, 50, 0, lambda idx: 0.1) == (0.1, 0.1)
