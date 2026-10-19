@@ -54,7 +54,7 @@ No commits to `main`; push is human-only.
 
 ## Next step
 
-See `TASKS.md`. Experiment 1 (A, C) on synthetic + ECB: A = C = base rate (spec
-§12-13). Experiment 2 (role-decomposed D vs A', preregistered), approved design: `docs/superpowers/specs/2026-10-19-experiment-2-role-decomposition-design.md`
-(branch `feat/experiment-2-role-decomposition`, built on `feat/experiment-1-public-data`).
-Raw results: git-ignored `workspace/`; ECB CSV: `data/`.
+See `TASKS.md`. Exp 1 (A, C): A = C = base rate (spec §12-13). Exp 2 (D vs A'):
+implementation complete on `feat/experiment-2-role-decomposition` (plan
+`docs/superpowers/plans/2026-10-19-experiment-2-role-decomposition.md`); awaiting
+the human-approved pilot (`docs/superpowers/plans/exp2-runbook.md`). Raw: `workspace/`.

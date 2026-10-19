@@ -5,7 +5,7 @@ Source of truth for tasks. Current state and confirmed constraints live in
 
 ## Next
 
-- [ ] Experiment 2: write the implementation plan from the approved design (superpowers:writing-plans), then execute in stages with separate human authorisation for each real-API stage (pilot, D+A', A'x5/A/C, test_shift). Needs: indicators module, per-Judge state in the runner, Platt calibration, L/M/Majority comparators, A'/D arms, paired comparison + verdict table.
+- [ ] Experiment 2: implementation done on `feat/experiment-2-role-decomposition`; next is the human-authorised pilot, then stages 2-4 each separately approved (`docs/superpowers/plans/exp2-runbook.md`).
 - [ ] Merge `feat/experiment-1-fixed-judges-average`, `feat/experiment-1-public-data` and the Experiment 2 branch into `develop` (human, after review).
 
 ## Waiting (human / external)
