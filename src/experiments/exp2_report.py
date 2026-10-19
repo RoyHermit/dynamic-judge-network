@@ -204,6 +204,7 @@ def _llm_arm(
             for key, c in fit.margins.items()
         },
         "platt_fallback": fit.platt.fallback,
+        "platt": fit.platt.model_dump(),
         "degenerate": fit.degenerate,
         **(
             _cost_latency(conn, fit.experiment_id, rows, cfg)
@@ -403,6 +404,88 @@ def _arms_table(arms: dict[str, dict[str, Any]]) -> list[str]:
     return lines
 
 
+def _llm_summaries(arms: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """The scored LLM arms (deterministic competitors carry no fit or calls)."""
+    return {name: a for name, a in arms.items() if "experiment_id" in a}
+
+
+def _cost_table(arms: dict[str, dict[str, Any]]) -> list[str]:
+    lines = [
+        "## Tokens, cost and latency (evaluated inputs)",
+        "",
+        (
+            "| arm | input tokens | output tokens | calls without usage | "
+            "cost USD | cost USD / input | latency p50 | latency p95 |"
+        ),
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for name, a in _llm_summaries(arms).items():
+        cost = a.get("cost")
+        if cost is None:  # D-noVol: recomputed, no calls of its own
+            lines.append(f"| {name} | not reported | | | | | | |")
+            continue
+        lines.append(
+            f"| {name} | {cost['input_tokens']} | {cost['output_tokens']} | "
+            f"{cost['calls_without_usage']} | {_fmt(cost['cost_usd'])} | "
+            f"{_fmt(cost['cost_usd_per_input'])} | {_fmt(a['latency_p50'])} | "
+            f"{_fmt(a['latency_p95'])} |"
+        )
+    return lines
+
+
+def _platt_table(arms: dict[str, dict[str, Any]]) -> list[str]:
+    lines = [
+        "## Platt calibration (frozen, fitted on calib)",
+        "",
+        "| arm | intercept | slope | base rate | fallback |",
+        "|---|---|---|---|---|",
+    ]
+    for name, a in _llm_summaries(arms).items():
+        p = a["platt"]
+        lines.append(
+            f"| {name} | {_fmt(p['intercept'])} | {_fmt(p['slope'])} | "
+            f"{_fmt(p['base_rate'])} | {_fmt(p['fallback'])} |"
+        )
+    return lines
+
+
+def _targets_table(arms: dict[str, dict[str, Any]]) -> list[str]:
+    lines = [
+        "## SKIP analysis (margins chosen on thresh)",
+        "",
+        (
+            "| arm | target | margin | reached | accuracy (acted) | "
+            "coverage (valid) | coverage (all) | n acted |"
+        ),
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for name, a in _llm_summaries(arms).items():
+        for key, t in a["targets"].items():
+            lines.append(
+                f"| {name} | {key} | {_fmt(t['margin'])} | {t['reached_target']} | "
+                f"{_fmt(t['accuracy'])} | {_fmt(t['coverage_valid'])} | "
+                f"{_fmt(t['coverage_all'])} | {t['n_acted']} |"
+            )
+    return lines
+
+
+def _reliability_table(arms: dict[str, dict[str, Any]]) -> list[str]:
+    lines = [
+        "## Reliability (calibration curve; non-empty bins)",
+        "",
+        "| arm | bin | n | mean p | frac HIGH |",
+        "|---|---|---|---|---|",
+    ]
+    for name, a in arms.items():
+        for b in a["reliability"]:
+            if b["n"]:
+                lines.append(
+                    f"| {name} | {b['bin']} | {b['n']} | {_fmt(b['mean_p'])} | "
+                    f"{_fmt(b['frac_high'])} |"
+                )
+    return lines
+
+
 def _comparisons_table(report: dict[str, Any]) -> list[str]:
     elig = report["eligibility"]
     lines = [
@@ -435,7 +518,8 @@ def _verdict_lines(verdict: dict[str, Any]) -> list[str]:
 
 
 def render_markdown(report: dict[str, Any]) -> str:
-    """Human-readable report: notes, arms, comparisons, diagnostics, verdict."""
+    """Human-readable report: notes, arms, cost/latency, Platt, SKIP targets,
+    reliability, comparisons, diagnostics, verdict."""
     label = " (secondary)" if report["secondary"] else ""
     if report["preliminary"]:
         label += " (preliminary)"
@@ -449,6 +533,14 @@ def render_markdown(report: dict[str, Any]) -> str:
         *[f"- {n}" for n in report["notes"]],
         "",
         *_arms_table(report["arms"]),
+        "",
+        *_cost_table(report["arms"]),
+        "",
+        *_platt_table(report["arms"]),
+        "",
+        *_targets_table(report["arms"]),
+        "",
+        *_reliability_table(report["arms"]),
         "",
         *_comparisons_table(report),
     ]

@@ -312,3 +312,15 @@ def test_verdict_refuses_incomplete_and_prints_context(tmp_path, capsys):
     for arm in LLM_ARMS:
         assert f"arm {arm}: invalid rate " in out
     assert "Platt fallback" in out
+
+
+def test_report_json_prints_the_full_report(tmp_path, capsys):
+    path = small_config(tmp_path)
+    asyncio.run(run_everything(path))
+    _fit_all(path)
+    capsys.readouterr()
+    main(["report", "--config", str(path), "--split", "test", "--json"])
+    report = json.loads(capsys.readouterr().out)
+    d = report["arms"]["D"]
+    assert {"targets", "reliability", "cost", "latency_p95", "platt"} <= set(d)
+    assert report["diagnostics"]["correlation"]["D"] is not None

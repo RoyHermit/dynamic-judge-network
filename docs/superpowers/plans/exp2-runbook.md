@@ -113,6 +113,17 @@ venv/bin/python -m src.experiments.exp2_cli report --config $C --split test
 venv/bin/python -m src.experiments.exp2_cli report --config $C --split test_shift
 ```
 
+`report` and `verdict` refuse when any reported LLM arm has no frozen fit or
+lacks a recorded call for any unit of the evaluated split (missing units
+would otherwise count as invalid samples and silently shrink the
+eligibility set). `--allow-incomplete` overrides this and puts an
+"incomplete run" warning note into the report and the verdict output.
+`report --json` prints the full report (every number behind the markdown);
+the markdown already lists tokens, latency p50/p95, Platt parameters and
+fallbacks, the SKIP-target analysis and the reliability bins. `verdict`
+prints, per dataset, the eligibility n, each LLM arm's invalid rate and Platt
+fallback, and all report notes.
+
 After stage 2 only, a preliminary `test` report (no A'x5, no attribution,
 verdict not final) is available. Fit D and A' first, then report:
 

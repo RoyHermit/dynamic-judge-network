@@ -29,6 +29,7 @@ from src.experiments.exp2_report import (
     render_markdown,
     report_notes,
 )
+from src.experiments.exp2_report_sections import fmt_cell as _fmt
 from src.experiments.verdict import evaluate_dataset
 from src.features.indicators import ROLES
 from src.metrics.paired import PairedDiff
@@ -389,3 +390,39 @@ async def test_load_frozen_fit_errors_are_clear(full):
         load_frozen_fit(conn, "unfit")
     fit = load_frozen_fit(conn, "t2-D")
     assert fit.experiment_id == "t2-D" and fit.n_expected == len(ROLES)
+
+
+async def test_markdown_shows_targets_reliability_tokens_latency_platt(full):
+    conn, source, cfg = full
+    report = build_report(conn, cfg, source, "test", ALL_ARMS)
+    md = render_markdown(report)
+    d = report["arms"]["D"]
+    for heading in (
+        "## Tokens, cost and latency",
+        "## Platt calibration",
+        "## SKIP analysis",
+        "## Reliability",
+    ):
+        assert heading in md
+    cost = d["cost"]
+    assert cost["input_tokens"] == 30 * 5 * 100  # 30 test inputs x 5 calls
+    assert (
+        f"| D | {cost['input_tokens']} | {cost['output_tokens']} | 0 | n/a | n/a | "
+        f"{_fmt(d['latency_p50'])} | {_fmt(d['latency_p95'])} |"
+    ) in md
+    platt = d["platt"]
+    assert set(platt) == {"intercept", "slope", "fallback", "base_rate"}
+    assert (
+        f"| D | {_fmt(platt['intercept'])} | {_fmt(platt['slope'])} | "
+        f"{_fmt(platt['base_rate'])} | {_fmt(platt['fallback'])} |"
+    ) in md
+    for key, t in d["targets"].items():
+        assert (
+            f"| D | {key} | {_fmt(t['margin'])} | {t['reached_target']} | "
+            f"{_fmt(t['accuracy'])} |"
+        ) in md
+    bins = [b for b in d["reliability"] if b["n"]]
+    assert bins
+    for b in bins:
+        assert f"| D | {b['bin']} | {b['n']} | {_fmt(b['mean_p'])} |" in md
+    assert "| D-noVol | not reported |" in md
