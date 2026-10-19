@@ -3253,7 +3253,7 @@ venv/bin/python -m src.experiments.cli pilot-stats --config configs/exp1.json --
 
 - [ ] **Step 3: Decide** — if `negligible` is false for the chosen topology, fix N and topology and set the real split sizes (from the observed cost and variance). If `negligible` is true everywhere, stop and decide with Claude between the spec §5.4 fallbacks (each is a separately approved ablation); record the decision as an addendum to the spec.
 
-- [ ] **Step 4: Full run** — run arms A (run 1 and run 2) and C (chosen topology) over `calib`, `thresh`, `test`, `test_shift`; fit each arm once with `fit_arm` from a short local script (the `report` command reads the frozen fit); then:
+- [ ] **Step 4: Full run** — run arms A (run 1 and run 2) and C (chosen topology) over `calib`, `thresh`, `test`, `test_shift`; freeze each arm once with `fit` (it also writes the headline decisions; the `report` command reads the frozen fit), e.g. `venv/bin/python -m src.experiments.cli fit --config configs/exp1.json --arm C --experiment exp1-C-batched`; use `--study-id` on `run` to keep pilot variants in their own study; then:
 
 ```bash
 venv/bin/python -m src.experiments.cli report --config configs/exp1.json --a-experiment exp1-A-run1 --c-experiment exp1-C-batched --split test
