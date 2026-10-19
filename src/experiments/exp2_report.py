@@ -66,6 +66,11 @@ NO_VOL_NOTE = (
     "its cost and latency are not reported"
 )
 
+L_NOT_CONVERGED_NOTE = (
+    "arm L: logistic regression did not converge (Newton hit its iteration "
+    "cap); L uses the last iterate"
+)
+
 LLM_ARMS: tuple[str, ...] = ("A", "C", "Ap", "Ap5", "D")
 RULE_LLM_ARMS: tuple[str, ...] = ("D", "Ap", "Ap5")  # §5 eligibility arms
 SECONDARY_ARMS: tuple[str, ...] = ("D", "Ap", "L", "M", "Majority")
@@ -343,7 +348,8 @@ def build_report(
         rows_by_arm["D-noVol"], summaries["D-noVol"] = _llm_arm(
             conn, no_vol, samples, cfg, own_calls=False
         )
-    for name, rows in competitor_rows(fit_competitors(calib, thresh), samples).items():
+    competitors = fit_competitors(calib, thresh)
+    for name, rows in competitor_rows(competitors, samples).items():
         if not secondary or name in SECONDARY_ARMS:
             rows_by_arm[name] = rows
             summaries[name] = _probability_summary(rows, cfg)
@@ -359,6 +365,8 @@ def build_report(
         notes.append(NO_VOL_NOTE)
     if dropped:
         notes.append(f"arms not reported on {split}: {', '.join(dropped)}")
+    if not competitors.logistic.converged:
+        notes.append(f"{L_NOT_CONVERGED_NOTE} (chosen l2 = {competitors.chosen_l2})")
     return {
         "study_id": cfg.study_id,
         "dataset": cfg.data.source,

@@ -21,13 +21,18 @@ def _sigmoid(z: float) -> float:
 
 
 class LogisticModel(BaseModel):
-    """Standardising logistic model; `predict` returns P(y = 1)."""
+    """Standardising logistic model; `predict` returns P(y = 1).
+
+    `converged` is False when Newton hit `MAX_ITER` before the step fell
+    below `TOL`; the last iterate is still used, but reports must say so.
+    """
 
     means: list[float]
     scales: list[float]
     weights: list[float]
     bias: float
     l2: float
+    converged: bool = True
 
     def predict(self, x: list[float]) -> float:
         """Probability of the positive class for one raw feature vector."""
@@ -61,7 +66,8 @@ def fit_logistic(xs: list[list[float]], ys: list[float], l2: float) -> LogisticM
     """Fit by full-batch Newton/IRLS on standardised features.
 
     Penalty is (l2 / 2) * |w|^2 on the summed log loss; the bias is not
-    penalised. A zero-variance column gets scale 1.
+    penalised. A zero-variance column gets scale 1. Records whether Newton
+    converged within `MAX_ITER` iterations.
     """
     if not xs or len(xs) != len(ys):
         raise ValueError("fit_logistic needs equal-length, non-empty xs and ys")
@@ -74,6 +80,7 @@ def fit_logistic(xs: list[list[float]], ys: list[float], l2: float) -> LogisticM
     z = [[(r[j] - means[j]) / scales[j] for j in range(d)] for r in xs]
 
     beta = [0.0] * (d + 1)  # weights then bias (last)
+    converged = False
     for _ in range(MAX_ITER):
         grad = [0.0] * (d + 1)
         hess = [[0.0] * (d + 1) for _ in range(d + 1)]
@@ -94,7 +101,13 @@ def fit_logistic(xs: list[list[float]], ys: list[float], l2: float) -> LogisticM
         step = [max(-MAX_STEP, min(MAX_STEP, v)) for v in step]
         beta = [b - v for b, v in zip(beta, step)]
         if max(abs(v) for v in step) < TOL:
+            converged = True
             break
     return LogisticModel(
-        means=means, scales=scales, weights=beta[:d], bias=beta[d], l2=l2
+        means=means,
+        scales=scales,
+        weights=beta[:d],
+        bias=beta[d],
+        l2=l2,
+        converged=converged,
     )

@@ -3,7 +3,8 @@
 import math
 import random
 
-from src.aggregation.logistic import fit_logistic
+from src.aggregation import logistic
+from src.aggregation.logistic import LogisticModel, fit_logistic
 
 
 def _draw(seed: int, n: int) -> tuple[list[list[float]], list[float]]:
@@ -39,3 +40,15 @@ def test_stronger_l2_shrinks_weights():
     strong = fit_logistic(xs, ys, l2=100.0)
     norm = lambda m: math.sqrt(sum(w * w for w in m.weights))
     assert norm(strong) < norm(weak)
+
+
+def test_convergence_is_recorded(monkeypatch):
+    xs, ys = _draw(3, 200)
+    assert fit_logistic(xs, ys, l2=1.0).converged is True
+    monkeypatch.setattr(logistic, "MAX_ITER", 1)
+    assert fit_logistic(xs, ys, l2=1.0).converged is False
+
+
+def test_stored_models_without_the_field_count_as_converged():
+    model = LogisticModel(means=[0.0], scales=[1.0], weights=[1.0], bias=0.0, l2=1.0)
+    assert model.converged is True

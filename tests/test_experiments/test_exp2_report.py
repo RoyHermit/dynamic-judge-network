@@ -10,6 +10,7 @@ import random
 import pytest
 from helpers_exp1 import insert_call, insert_judge_log
 
+from src.aggregation import logistic
 from src.data.ecb import EcbCsvConfig
 from src.data.schema import Sample, Split
 from src.data.synthetic import SyntheticConfig, SyntheticSource
@@ -20,6 +21,7 @@ from src.experiments.exp2_report import (
     CI_NOTE,
     COMPARISONS,
     ECB_NOTE,
+    L_NOT_CONVERGED_NOTE,
     NO_VOL_NOTE,
     PRELIMINARY_NOTE,
     SECONDARY_NOTE,
@@ -426,3 +428,13 @@ async def test_markdown_shows_targets_reliability_tokens_latency_platt(full):
     for b in bins:
         assert f"| D | {b['bin']} | {b['n']} | {_fmt(b['mean_p'])} |" in md
     assert "| D-noVol | not reported |" in md
+
+
+async def test_report_warns_when_logistic_l_did_not_converge(full, monkeypatch):
+    conn, source, cfg = full
+    report = build_report(conn, cfg, source, "test", ALL_ARMS)
+    assert not any(L_NOT_CONVERGED_NOTE in n for n in report["notes"])
+    monkeypatch.setattr(logistic, "MAX_ITER", 1)
+    report = build_report(conn, cfg, source, "test", ALL_ARMS)
+    assert any(L_NOT_CONVERGED_NOTE in n for n in report["notes"])
+    assert L_NOT_CONVERGED_NOTE in render_markdown(report)
