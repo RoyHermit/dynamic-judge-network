@@ -18,6 +18,20 @@ def replica_index(judge_id: str) -> int | None:
     return int(tail) if sep else None
 
 
+def parse_probability(answer: Answer) -> float:
+    """Return a valid Noul P(HIGH) from the answer or raise ValueError."""
+    p = answer.raw_probability
+    if (
+        answer.kind != "noul"
+        or p is None
+        or isinstance(p, bool)
+        or not math.isfinite(p)
+        or not 0.0 <= p <= 1.0
+    ):
+        raise ValueError(f"invalid P(HIGH) answer: {answer!r}")
+    return p
+
+
 class HighLowJudge:
     judge_version = "highlow-1.0"
 
@@ -34,13 +48,4 @@ class HighLowJudge:
         return Question(kind="noul", prompt=self.judge_prompt_or_definition)
 
     def interpret(self, answer: Answer) -> Decision:
-        p = answer.raw_probability
-        if (
-            answer.kind != "noul"
-            or p is None
-            or isinstance(p, bool)
-            or not math.isfinite(p)
-            or not 0.0 <= p <= 1.0
-        ):
-            raise ValueError(f"invalid P(HIGH) answer: {answer!r}")
-        return Decision(value=p)
+        return Decision(value=parse_probability(answer))
