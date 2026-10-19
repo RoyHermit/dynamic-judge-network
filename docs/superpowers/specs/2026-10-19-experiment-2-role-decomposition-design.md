@@ -110,23 +110,42 @@ indicator list, and never tuned on `test`.
 
 On each dataset separately, on `test`, with accuracy at full coverage (no
 `SKIP`: predict HIGH if the calibrated probability >= 0.5), using the paired
-moving-block bootstrap of Experiment 1 (95% CI, same sample set):
+moving-block bootstrap of Experiment 1 (95% CI of the accuracy difference).
+
+**Eligibility set.** The success rule is evaluated on the samples that are
+valid in every LLM arm that takes part in it (D, A', A'x5); the deterministic
+arms are always valid. The same set is used for every comparison in the rule.
+The report also gives each arm's invalid rate and its coverage over *all*
+labelled candidates (an invalid sample counts as not acted).
 
 Success on a dataset requires **all** of:
-1. D - A' has a 95% CI above 0 **and** a point estimate of at least +3 percentage
-   points (minimum useful improvement; builder-independent, my call).
-2. D beats Majority, L and M by the same rule (CI above 0). These are an
-   intersection of conditions, so no multiplicity correction is applied, but no
-   claim is made from any single favourable comparison.
+1. D - A': the 95% CI is above 0 **and** the point estimate is at least +3
+   percentage points. The +3 gate applies **only** to this comparison and is a
+   screen on the observed difference; it does not claim that the true
+   improvement is at least 3 points.
+2. D - Majority, D - L and D - M: the 95% CI is above 0 (no +3 gate).
 
-Reported but not part of the success rule: D vs A, C, A'x5 and Const;
-D-noVol vs D; coverage-matched accuracy at 0.8; Brier and log loss (raw and
-calibrated); calibration curves.
+These are conjunctive conditions, so no multiplicity correction is applied, but
+no claim is made from any single favourable comparison.
 
-Non-significance is not evidence of equivalence. With n = 300-600 and paired
-disagreement of 20-50%, the 80%-power detectable accuracy gain is roughly
-6-7 points at n = 600 (7-11 at n = 300); this experiment cannot detect smaller
-effects and will say so.
+**Attribution.** D beating A' shows an effect of "five role views over one
+all-indicator view", which still confounds decomposition with five requests
+versus one. The claim *"the gain is due to role decomposition"* is made only if
+D also beats A'x5 (95% CI above 0, same set); otherwise the report says the
+gain is not separable from replication/compute. (My call; A'x5 is not part of
+the success rule you approved, only of the attribution wording.)
+
+Reported but not part of the rule: D vs A, C, Const; D-noVol vs D;
+coverage-matched accuracy at 0.8; Brier and log loss (raw and calibrated);
+calibration curves.
+
+**Power.** For paired accuracy differences with disagreement q between the two
+arms, the 80%-power detectable gain at two-sided 5% is about 2.8*sqrt(q/n):
+5.1-8.1 points for q = 20-50% at n = 600 (8.5-13 at n = 300), assuming
+independent pairs. Serial dependence makes it worse, and requiring several
+comparisons to pass at once lowers the power for the overall verdict. A
+non-significant result is not evidence of equivalence, and effects smaller
+than this may well go undetected.
 
 ## 6. Diagnostics (not success criteria)
 
@@ -148,8 +167,9 @@ evidence of a better ensemble (it can reflect added noise).
 Both datasets of Experiment 1, each evaluated separately.
 
 - Split sizes (candidates): pilot 30, calib 150, thresh 150, **test 600**,
-  test_shift 300 (the largest test the ECB history can hold: about 6,700 of
-  7,116 daily bars). Calibration on 150 points is noisier; see §8.
+  test_shift 300. This needs 6,710 of the 7,116 daily ECB bars; with the other
+  sizes fixed the history could hold at most 681 test candidates, so 600 is a
+  round number below the limit, not the limit. Calibration on 150 points is noisier; see §8.
 - ECB EUR/USD daily (`ecb_csv`) and synthetic (`synthetic`). Synthetic uses a
   **new seed** (not 0) so it is untouched by the Experiment 1 results.
 - Experiment 1's results informed this design, so the ECB result (same file,
@@ -165,9 +185,15 @@ Both datasets of Experiment 1, each evaluated separately.
 - D, A'x5: mean of five valid probabilities; fewer than five valid answers
   makes the sample invalid (unchanged rule); invalid rate reported per arm.
 - **Primary calibrator: Platt scaling** (two-parameter logistic on the logit
-  of the mean probability), fitted on `calib`; chosen over isotonic because 150
-  calibration points made isotonic overconfident in Experiment 1. Isotonic is
-  reported as a sensitivity analysis. (My call.) Never refit on `test`.
+  of the mean probability), fitted on `calib`. Chosen over isotonic because
+  isotonic was overconfident with 200 calibration points in Experiment 1 and 150
+  is fewer. Definition: the mean probability is clipped to [1e-4, 1 - 1e-4]
+  before the logit (stored values are not changed); a small L2 penalty is
+  applied to the slope; the slope is constrained to be non-negative. If the
+  inputs are constant, the fit fails, or the data are perfectly separated, the
+  calibrator falls back to the intercept-only base rate of `calib` and the
+  fallback is recorded and reported. Isotonic is reported as a sensitivity
+  analysis. (My call.) Never refit on `test`.
 - Margins for the `SKIP` analyses are chosen on `thresh` as in Experiment 1;
   the primary metric ignores `SKIP`.
 - Bootstrap intervals condition on the frozen calibrator and margins; they
@@ -194,9 +220,11 @@ Both datasets of Experiment 1, each evaluated separately.
 - **`test_shift` is a secondary generalisation check**: reported next to
   `test` for D, A', L, M and Majority, never part of the success rule, and not
   used to choose anything.
-- Calls per sample: A 1 + C 1 + A' 1 + A'x5 5 + D 5 = 13; about 16,000 calls
-  for 1,230 samples per dataset, shorter prompts than Exp 1 (indicators, not 60
-  bars); expect on the order of 5M input tokens per dataset.
+- Calls per sample: A 1 + C 1 + A' 1 + A'x5 5 + D 5 = 13. The staged plan
+  costs about 13,900 calls per dataset (pilot 30 x 13 = 390; stage 2: 900 x 6 =
+  5,400; stage 3: 900 x 7 = 6,300; stage 4: 300 x 6 = 1,800), or 15,990 if every
+  arm ran on every split, before ties and reruns. Prompts are shorter than in
+  Exp 1 (indicators, not 60 bars); the token budget is measured in the pilot.
 - No new dependencies (logistic regression and Platt scaling in pure Python).
 - Repo artifacts in English, chat in Japanese; no real data in tests (test CSV
   fixtures generated from the schema).
