@@ -59,6 +59,14 @@ the gate is the default (all five arms). The pilot may only stop the run or expo
 defect fix means the pilot is rerun, and prompts are never tuned for
 accuracy. Also read the measured token budget before approving stage 2.
 
+**After any pilot defect fix, use a NEW `study_id` and a NEW `db_path`** in
+the local config before rerunning the pilot. The answers of the old pilot
+are discarded, not reused: `run` skips every unit that already has a
+recorded call, so resuming the old study would silently mix stale answers
+with the fixed prompts. As a backstop, each Experiment 2 run stores a
+`judge_fingerprint` (sha256 over every Judge's id, version and prompt) and
+`run` refuses to resume an experiment whose fingerprint differs.
+
 ## Stage 2: D and A' on calib, thresh, test (900 x 6 = 5,400 calls per dataset)
 
 ```bash

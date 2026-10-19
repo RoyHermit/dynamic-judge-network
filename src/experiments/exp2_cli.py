@@ -21,7 +21,7 @@ from src.config import Settings
 from src.data.factory import dataset_identity, load_source
 from src.data.schema import SPLITS, DataSource
 from src.experiments.cli import _check_dataset
-from src.experiments.exp2_arms import arm_spec, n_expected
+from src.experiments.exp2_arms import arm_spec, judge_fingerprint, n_expected
 from src.experiments.exp2_config import Exp2Config
 from src.experiments.exp2_pilot import pilot_check
 from src.experiments.exp2_pipeline import Exp2Fit, fit_exp2_arm, score_exp2
@@ -60,6 +60,8 @@ async def _run(args: argparse.Namespace) -> None:
         "requested_model": cfg.model,
         "extra_body": cfg.extra_body,
         "pricing": cfg.pricing.model_dump() if cfg.pricing else None,
+        # a changed prompt/version must not resume onto stale answers (§9)
+        "judge_fingerprint": judge_fingerprint(spec),
     }
     async with ts.AsyncTypeSafeClient() as client:  # SDK reads it from the environment
         executor = JevStageExecutor(

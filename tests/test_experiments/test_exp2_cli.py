@@ -14,10 +14,11 @@ from pydantic import ValidationError
 from src.data.ecb import EcbCsvConfig
 from src.data.factory import load_source
 from src.experiments import exp2_cli
-from src.experiments.exp2_arms import arm_spec
+from src.experiments.exp2_arms import arm_spec, judge_fingerprint
 from src.experiments.exp2_cli import load_config, main
 from src.experiments.exp2_report import LLM_ARMS
 from src.experiments.runner import run_arm
+from src.judges.definitions import indicator_judge
 from src.judges.jev_executor import JevStageExecutor
 from src.storage import db
 from src.storage.reader import load_experiment_config
@@ -224,3 +225,32 @@ def test_report_requires_ap5_unless_preliminary(tmp_path, monkeypatch):
         + ["--arms", "D", "Ap", "--preliminary"]
     )
     assert seen == [(tuple(LLM_ARMS), False), (("D", "Ap"), True)]
+
+
+def test_resume_after_a_prompt_change_is_refused(tmp_path, monkeypatch):
+    path = small_config(tmp_path)
+    monkeypatch.setattr(exp2_cli.Settings, "load", classmethod(lambda cls: None))
+    monkeypatch.setattr(exp2_cli.ts, "AsyncTypeSafeClient", _FakeClientContext)
+    argv = ["run", "--config", str(path), "--arm", "D", "--split", "pilot"]
+    main([*argv, "--max-units", "2"])
+    conn = db.connect(load_config(str(path)).db_path)
+    assert load_experiment_config(conn, "exp2-D")["judge_fingerprint"]
+    main(argv)  # same prompts: resuming is allowed
+
+    original = indicator_judge.build_prompt
+
+    def fixed_prompt(role_name: str, keys: tuple[str, ...], horizon: int) -> str:
+        return original(role_name, keys, horizon) + " Answer carefully."
+
+    monkeypatch.setattr(indicator_judge, "build_prompt", fixed_prompt)
+    with pytest.raises(ValueError, match="judge_fingerprint"):
+        main(argv)
+
+
+def test_judge_fingerprint_tracks_prompt_and_version(monkeypatch):
+    spec = arm_spec("s", "Ap", 5, 5)
+    base = judge_fingerprint(spec)
+    assert base == judge_fingerprint(arm_spec("other-study", "Ap", 5, 5))
+    assert base != judge_fingerprint(arm_spec("s", "Ap", 5, 7))  # horizon in prompt
+    monkeypatch.setattr(indicator_judge.AllIndicatorsJudge, "judge_version", "x")
+    assert judge_fingerprint(spec) != base

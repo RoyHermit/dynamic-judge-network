@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Literal
 
 from pydantic import BaseModel
@@ -50,6 +52,22 @@ class Exp2ArmSpec(BaseModel):
     def judge_for(self, judge_id: str) -> Judge:
         """Rebuild the Judge named by a stored id."""
         return judge_from_id(judge_id, self.horizon)
+
+
+def judge_fingerprint(spec: ArmLike) -> str:
+    """sha256 over (id, version, prompt/definition) of every Judge of `spec`.
+
+    Prompts depend only on the role and horizon, never on the sample, so one
+    pass over `spec.units()` covers every request the arm can make. Stored in
+    the run config so a resumed run with a changed prompt is refused instead
+    of mixing stale answers with new ones (spec §9).
+    """
+    judges = [
+        [j.judge_id, j.judge_version, j.judge_prompt_or_definition]
+        for _, unit in spec.units()
+        for j in unit
+    ]
+    return hashlib.sha256(json.dumps(judges).encode()).hexdigest()
 
 
 def n_expected(arm: str, n_replicas: int) -> int:

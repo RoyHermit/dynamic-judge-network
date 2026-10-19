@@ -76,6 +76,8 @@ class ArmSpec(BaseModel):
 
 # Keys that define what a stored answer means; resuming with different values
 # would pair old answers with a new dataset or model (spec §9.1).
+# `judge_fingerprint` (Experiment 2 only) covers the Judges' ids, versions and
+# prompts; configs stored without it (Experiment 1) skip that check.
 _IDENTITY_KEYS = (
     "data",
     "dataset_id",
@@ -83,6 +85,7 @@ _IDENTITY_KEYS = (
     "extra_body",
     "n_replicas",
     "horizon",
+    "judge_fingerprint",
 )
 
 
