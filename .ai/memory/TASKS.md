@@ -5,7 +5,7 @@ Source of truth for tasks. Current state and confirmed constraints live in
 
 ## Next
 
-- [ ] Experiment 1: Fixed Judges + Average — brainstorm, then spec. Jev only, on the existing `Judge`/`JevStageExecutor`, no dynamic activation. Resolve fixed baselines under A–F, the High/Low ground truth and data pipeline (`src/data/` is a stub), and Judge roles (`src/judges/definitions/`). Pin hypothesis, metrics, ablation, and logs (attempts, fetched answers, latency, coverage, calibration, `SKIP`). Keep B and D out of the simple fixed-average baseline.
+- [ ] Experiment 1: human-run pilot, then full run and report (plan Task 13: `docs/superpowers/plans/2026-10-15-experiment-1-fixed-judges-average.md`). Code is implemented on `feat/experiment-1-fixed-judges-average`; the pilot decides N, topology and split sizes.
 
 ## Waiting (human / external)
 
@@ -14,4 +14,4 @@ Source of truth for tasks. Current state and confirmed constraints live in
 ## Parked
 
 - [ ] Dynamic provider selection and OpenAI Decisions (beta) — deferred.
-- [ ] Graph, aggregation, runtime, experiments, metrics, escalation — remain stubs until Experiment 1 is specified.
+- [ ] Graph, runtime, escalation — remain stubs until Experiment 1 results exist.

@@ -54,6 +54,6 @@ No commits to `main`; push is human-only.
 
 ## Next step
 
-See `TASKS.md` (source of truth for tasks). Not started: Experiment 1,
-Fixed Judges + Average. Graph, aggregation, runtime, experiments,
-metrics, escalation remain stubs.
+See `TASKS.md`. Experiment 1 (A and C baselines) is implemented on
+`feat/experiment-1-fixed-judges-average` (spec + plan in `docs/superpowers/`);
+pilot and full run are human-run. Graph, runtime, escalation remain stubs.
