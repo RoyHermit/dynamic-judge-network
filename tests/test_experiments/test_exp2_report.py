@@ -20,12 +20,18 @@ from src.experiments.exp2_report import (
     CI_NOTE,
     COMPARISONS,
     ECB_NOTE,
+    NO_VOL_NOTE,
+    PRELIMINARY_NOTE,
+    SECONDARY_NOTE,
+    _verdict,
     build_report,
     load_frozen_fit,
     render_markdown,
     report_notes,
 )
+from src.experiments.verdict import evaluate_dataset
 from src.features.indicators import ROLES
+from src.metrics.paired import PairedDiff
 from src.storage import db
 from src.storage.writer import SqliteStorageWriter
 
@@ -77,8 +83,19 @@ class _Relabelled:
         return [s.model_copy(update={"label": self._label}) for s in out]
 
 
-async def _build_db(tmp_path, cfg: Exp2Config, arms: list[str], constant_d=False):
-    """Insert seeded answers for every arm/split, then freeze each arm's fit."""
+async def _build_db(
+    tmp_path,
+    cfg: Exp2Config,
+    arms: list[str],
+    constant_d: bool = False,
+    drop: dict[str, set[str]] | None = None,
+):
+    """Insert seeded answers for every arm/split, then freeze each arm's fit.
+
+    `drop[arm]` lists input ids whose first-stage judge log is omitted, which
+    makes that sample invalid for the arm (too few valid answers).
+    """
+    drop = drop or {}
     conn = db.connect(tmp_path / "r.db")
     writer = SqliteStorageWriter(conn)
     source = SyntheticSource(cfg.data)
@@ -103,6 +120,8 @@ async def _build_db(tmp_path, cfg: Exp2Config, arms: list[str], constant_d=False
                         p = 0.5 + sign * strength[arm] + rng.gauss(0.0, 0.15)
                         if constant_d and arm == "D":
                             p = 0.3
+                        if stage == 0 and s.input_id in drop.get(arm, set()):
+                            continue
                         insert_judge_log(
                             conn,
                             eid,
@@ -180,9 +199,108 @@ async def test_test_shift_report_has_only_secondary_arms(full):
     assert set(report["comparisons"]) == {"D-Ap", "D-Majority", "D-L", "D-M"}
     assert report["verdict"] is None
     assert report["secondary"] is True
-    assert any("not part of the success rule" in n for n in report["notes"])
+    assert SECONDARY_NOTE in report["notes"]
+    assert "arms not reported on test_shift: A, C, Ap5" in report["notes"]
     md = render_markdown(report)
-    assert "secondary" in md and "Verdict" not in md
+    assert SECONDARY_NOTE in md and "Verdict" not in md
+
+
+async def test_preliminary_flag_is_normalised(full):
+    conn, source, cfg = full
+    report = build_report(conn, cfg, source, "test", ALL_ARMS, preliminary=True)
+    assert report["preliminary"] is False
+    assert report["eligibility"]["llm_arms"] == ["D", "Ap", "Ap5"]
+    assert PRELIMINARY_NOTE not in report["notes"]
+    assert "preliminary" not in render_markdown(report).splitlines()[0]
+    shift = build_report(conn, cfg, source, "test_shift", ["D", "Ap"], preliminary=True)
+    assert shift["preliminary"] is False
+
+
+async def test_no_vol_reports_no_cost(full):
+    conn, source, cfg = full
+    report = build_report(conn, cfg, source, "test", ALL_ARMS)
+    no_vol = report["arms"]["D-noVol"]
+    assert no_vol["cost"] is None and no_vol["latency_p50"] is None
+    assert NO_VOL_NOTE in report["notes"]
+    render_markdown(report)  # renders without cost data
+
+
+@pytest.fixture
+async def with_invalid(tmp_path):
+    """Some D samples and different Ap5 samples are invalid on test."""
+    cfg = _cfg()
+    test_ids = [s.input_id for s in SyntheticSource(cfg.data).samples("test")]
+    drop = {"D": {test_ids[2], test_ids[3]}, "Ap5": {test_ids[10]}}
+    conn, source = await _build_db(tmp_path, cfg, ALL_ARMS, drop=drop)
+    return conn, source, cfg, test_ids, drop
+
+
+async def test_eligibility_set_counts_invalid_samples(with_invalid):
+    conn, source, cfg, test_ids, drop = with_invalid
+    report = build_report(conn, cfg, source, "test", ALL_ARMS)
+    expected = len(set(test_ids) - drop["D"] - drop["Ap5"])
+    assert expected == len(test_ids) - 3
+    assert report["n_labelled"] == len(test_ids)
+    assert report["eligibility"]["n"] == expected
+    for key in ("D-Ap", "D-Majority", "D-L", "D-M", "D-Ap5"):
+        assert report["comparisons"][key]["n"] == expected, key
+    assert report["comparisons"]["D-Ap"]["ci"] is not None
+
+
+async def test_invalid_rate_and_coverage_all_count_invalid(with_invalid):
+    conn, source, cfg, test_ids, drop = with_invalid
+    report = build_report(conn, cfg, source, "test", ALL_ARMS)
+    d = report["arms"]["D"]
+    n_valid = len(test_ids) - len(drop["D"])
+    assert d["n_valid"] == n_valid
+    assert d["coverage_all"] == pytest.approx(n_valid / len(test_ids))
+    assert d["coverage_all"] < 1
+    assert d["invalid_rate"] == pytest.approx(1 - n_valid / len(test_ids))
+    # at a stated margin coverage_all also divides by every labelled sample
+    for t in d["targets"].values():
+        assert t["coverage_all"] == pytest.approx(t["n_acted"] / len(test_ids))
+    ap5 = report["arms"]["Ap5"]
+    assert ap5["invalid_rate"] == pytest.approx(1 / len(test_ids))
+
+
+async def test_verdict_matches_success_rule_on_report_comparisons(with_invalid):
+    conn, source, cfg, _, _ = with_invalid
+    report = build_report(conn, cfg, source, "test", ALL_ARMS)
+    c = report["comparisons"]
+    expected = evaluate_dataset(
+        PairedDiff(**c["D-Ap"]),
+        PairedDiff(**c["D-Majority"]),
+        PairedDiff(**c["D-L"]),
+        PairedDiff(**c["D-M"]),
+        PairedDiff(**c["D-Ap5"]),
+        cfg.min_gain,
+    ).model_dump()
+    assert report["verdict"] == expected
+    assert report["verdict"]["attributable"] is not None
+
+
+def _diff(diff: float, ci: tuple[float, float]) -> dict:
+    return PairedDiff(n=30, acc_x=0.6, acc_y=0.6 - diff, diff=diff, ci=ci).model_dump()
+
+
+def test_verdict_wires_each_comparison_to_its_criterion():
+    """D-Ap passes and D-Ap5 fails: swapping them would flip both outcomes."""
+    comparisons = {
+        "D-Ap": _diff(0.1, (0.02, 0.2)),
+        "D-Ap5": _diff(0.01, (-0.05, 0.06)),
+        "D-Majority": _diff(0.1, (0.01, 0.2)),
+        "D-L": _diff(0.1, (0.01, 0.2)),
+        "D-M": _diff(0.1, (0.01, 0.2)),
+    }
+    verdict = _verdict(comparisons, _cfg())
+    assert verdict["passed"] is True and verdict["attributable"] is False
+    comparisons["D-L"] = _diff(0.1, (-0.01, 0.2))
+    verdict = _verdict(comparisons, _cfg())
+    assert verdict["passed"] is False and verdict["criteria"]["D>L"] is False
+    assert verdict["criteria"]["D>M"] and verdict["criteria"]["D>Majority"]
+    del comparisons["D-Ap"]
+    with pytest.raises(ValueError, match="D-Ap"):
+        _verdict(comparisons, _cfg())
 
 
 async def test_missing_ap5_requires_preliminary(tmp_path):

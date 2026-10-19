@@ -61,6 +61,11 @@ PRELIMINARY_NOTE = (
     "attribution is unavailable and the verdict is not final"
 )
 
+NO_VOL_NOTE = (
+    "D-noVol is recomputed from D's stored answers (no extra calls); "
+    "its cost and latency are not reported"
+)
+
 LLM_ARMS: tuple[str, ...] = ("A", "C", "Ap", "Ap5", "D")
 RULE_LLM_ARMS: tuple[str, ...] = ("D", "Ap", "Ap5")  # §5 eligibility arms
 SECONDARY_ARMS: tuple[str, ...] = ("D", "Ap", "L", "M", "Majority")
@@ -165,9 +170,18 @@ def _cost_latency(
 
 
 def _llm_arm(
-    conn: sqlite3.Connection, fit: Exp2Fit, samples: list[Sample], cfg: Exp2Config
+    conn: sqlite3.Connection,
+    fit: Exp2Fit,
+    samples: list[Sample],
+    cfg: Exp2Config,
+    *,
+    own_calls: bool = True,
 ) -> tuple[list[Row], dict[str, Any]]:
-    """Platt rows and the full per-arm summary of one scored LLM arm."""
+    """Platt rows and the full per-arm summary of one scored LLM arm.
+
+    `own_calls=False` (D-noVol, recomputed from D's stored answers) reports
+    no cost or latency instead of duplicating D's.
+    """
     rows = score_exp2(conn, fit, samples)
     iso = score_exp2(conn, fit, samples, calibrator="isotonic")
     raw = _raw_rows(conn, fit, samples)
@@ -191,7 +205,11 @@ def _llm_arm(
         },
         "platt_fallback": fit.platt.fallback,
         "degenerate": fit.degenerate,
-        **_cost_latency(conn, fit.experiment_id, rows, cfg),
+        **(
+            _cost_latency(conn, fit.experiment_id, rows, cfg)
+            if own_calls
+            else {"latency_p50": None, "latency_p95": None, "cost": None}
+        ),
     }
     return rows, summary
 
@@ -251,8 +269,9 @@ def _verdict(
     """§5 success rule on this dataset; attribution None without A'x5."""
 
     def get(key: str) -> PairedDiff:
-        value = comparisons[key]
-        assert value is not None  # D, Ap and the competitors are always present
+        value = comparisons.get(key)
+        if value is None:
+            raise ValueError(f"comparison {key!r} is required for the verdict")
         return PairedDiff.model_validate(value)
 
     ap5 = comparisons.get("D-Ap5")
@@ -299,6 +318,10 @@ def build_report(
     """
     secondary = split == "test_shift"
     scored, rule_arms = _select_arms(split, arms, preliminary)
+    # flag, note, heading and eligibility set must agree: preliminary only
+    # means "test without A'x5"
+    preliminary = preliminary and "Ap5" not in scored and split == "test"
+    dropped = [a for a in arms if a not in scored]
     calib, thresh = source.samples("calib"), source.samples("thresh")
     samples = source.samples(split)
     horizon = cfg.data.horizon
@@ -317,7 +340,7 @@ def build_report(
             conn, ids["D"], len(ROLE_JUDGES) - 1, calib, thresh, cfg, NO_VOL_EXCLUDE
         )  # prespecified ablation: recomputed from D's answers, never frozen
         rows_by_arm["D-noVol"], summaries["D-noVol"] = _llm_arm(
-            conn, no_vol, samples, cfg
+            conn, no_vol, samples, cfg, own_calls=False
         )
     for name, rows in competitor_rows(fit_competitors(calib, thresh), samples).items():
         if not secondary or name in SECONDARY_ARMS:
@@ -330,11 +353,11 @@ def build_report(
         SECONDARY_COMPARISONS if secondary else tuple(COMPARISONS),
         cfg,
     )
-    notes = report_notes(
-        cfg.data,
-        secondary=secondary,
-        preliminary=preliminary and "Ap5" not in scored and not secondary,
-    )
+    notes = report_notes(cfg.data, secondary=secondary, preliminary=preliminary)
+    if not secondary:
+        notes.append(NO_VOL_NOTE)
+    if dropped:
+        notes.append(f"arms not reported on {split}: {', '.join(dropped)}")
     return {
         "study_id": cfg.study_id,
         "dataset": cfg.data.source,
@@ -368,7 +391,7 @@ def _arms_table(arms: dict[str, dict[str, Any]]) -> list[str]:
     ]
     for name, a in arms.items():
         iso = a.get("isotonic", {})
-        cost = a.get("cost", {})
+        cost = a.get("cost") or {}
         lines.append(
             f"| {name} | {a['n_valid']}/{a['n_rows']} | {_fmt(a['invalid_rate'])} | "
             f"{_fmt(a['coverage_all'])} | {_fmt(a['accuracy_full'])} | "
