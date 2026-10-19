@@ -5,7 +5,8 @@ Source of truth for tasks. Current state and confirmed constraints live in
 
 ## Next
 
-- [ ] Experiment 1: human-run pilot, then full run and report (plan Task 13: `docs/superpowers/plans/2026-10-15-experiment-1-fixed-judges-average.md`). Code is implemented on `feat/experiment-1-fixed-judges-average`; the pilot decides N, topology and split sizes.
+- [ ] Experiment 1 follow-up: decide how to read the first run (A and C at or below the majority reference; see spec §12). Options: a stronger High/Low prompt or richer state, a larger calibration split / smoother calibrator, then rerun; or move to the public-data swap.
+- [ ] Merge `feat/experiment-1-fixed-judges-average` into `develop` (human).
 
 ## Waiting (human / external)
 

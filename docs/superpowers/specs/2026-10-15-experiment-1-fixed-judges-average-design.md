@@ -354,3 +354,37 @@ done.
 - Split sizes and N/topology confirmation: decided after the pilot (§5.4).
 - Variance strategy if the pilot shows negligible variance (§5.4).
 - Public-data source and licence check (later experiment).
+
+## 12. Addendum (2026-10-19): pilot outcome and first run
+
+**Pilot** (`pilot` split, 30 samples, model alias default → returned `jev-1.13.0`;
+242 calls, no failures): replica spread was not negligible by the predeclared
+rule (§5.4): mean std 0.016 (C batched), 0.018 (C separate), 0.010 (A run1 vs
+run2); no input had replicas on both sides of 0.5; error correlation 1.0
+(replicas err together). P(HIGH) ranged 0.14-0.37 (mean 0.26): the Judge is
+biased toward LOW, which the isotonic calibrator corrects by rank only.
+
+**Decision:** N = 5, topology `batched` (spread comparable to `separate` at
+1/5 of the calls). The §5.4 fallbacks (other models, perturbations, dropping
+replication) are not triggered.
+
+**First run** (study `exp1`, split sizes calib 200 / thresh 200 / test 300 /
+test_shift 300 candidates; ties excluded; A run1 and C batched on all splits,
+A run2 on test and test_shift; ~2.5M input / 0.15M output tokens; pricing not
+configured, so no cost in USD):
+
+| split | A acc (cov) | C acc (cov) | majority | momentum | regime-aware |
+|---|---|---|---|---|---|
+| test (n=299) | 0.552 (0.575) | 0.559 (1.0) | 0.575 | 0.485 | 0.592 |
+| test_shift (n=300) | 0.449 (0.557) | 0.453 (1.0) | 0.453 | 0.543 | 0.580 |
+
+C minus A accuracy: 95% CI (-0.044, 0.055) on test and (-0.051, 0.053) on
+test_shift, i.e. no detectable difference. Both arms are at or below the
+majority-class reference, so on this synthetic data the Judge shows no
+demonstrated skill over a constant guess; this is a baseline result, not
+evidence for or against the dynamic network. Brier / log loss: A 0.249 / 0.691,
+C 0.267 / 1.112 on test (C's isotonic fit on 200 calibration points is
+overconfident). Because isotonic output has few distinct steps, all three
+coverage targets selected the same margin per arm (A could not reach 100% or
+80% because many calibrated values equal exactly 0.5 and are always `SKIP`).
+A run1 vs run2 mean |dP(HIGH)| on test: 0.027. Failure and invalid rates: 0.

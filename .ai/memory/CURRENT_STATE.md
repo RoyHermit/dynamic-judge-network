@@ -54,6 +54,8 @@ No commits to `main`; push is human-only.
 
 ## Next step
 
-See `TASKS.md`. Experiment 1 (A and C baselines) is implemented on
-`feat/experiment-1-fixed-judges-average` (spec + plan in `docs/superpowers/`);
-pilot and full run are human-run. Graph, runtime, escalation remain stubs.
+See `TASKS.md`. Experiment 1 (A and C baselines) ran on 2026-10-19 (N=5, batched,
+synthetic data; spec §12): C matches A, both at or below the majority reference.
+Code is on `feat/experiment-1-fixed-judges-average` (spec + plan in
+`docs/superpowers/`); results live in the git-ignored `workspace/exp1.db`.
+Graph, runtime, escalation remain stubs.
